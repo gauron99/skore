@@ -143,6 +143,27 @@ void main() {
     expect(find.text('Ben wins with 3 points!'), findsOneWidget);
   });
 
+  testWidgets('text scales up on large screens', (tester) async {
+    tester.view.physicalSize = const Size(2400, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pumpApp(tester);
+
+    final context = tester.element(find.byType(HomeGate));
+    // shortestSide 1400 -> capped at the 1.8x maximum.
+    expect(MediaQuery.textScalerOf(context).scale(14), closeTo(14 * 1.8, 0.1));
+  });
+
+  testWidgets('phone-sized screens keep the native text size', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pumpApp(tester);
+
+    final context = tester.element(find.byType(HomeGate));
+    expect(MediaQuery.textScalerOf(context).scale(14), 14);
+  });
+
   testWidgets('a saved game is restored on launch (legacy format migrates)',
       (tester) async {
     SharedPreferences.setMockInitialValues({

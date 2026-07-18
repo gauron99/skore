@@ -21,6 +21,21 @@ class SkoreApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
       ),
+      // Tie text size to the window: phone-sized screens keep the native
+      // size, bigger windows scale up (capped at 1.8x) so scores are
+      // readable from across the table. Composed with the system
+      // accessibility text scale instead of replacing it.
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        final windowScale = (media.size.shortestSide / 600).clamp(1.0, 1.8);
+        final systemScale = media.textScaler.scale(14) / 14;
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: TextScaler.linear(systemScale * windowScale),
+          ),
+          child: child!,
+        );
+      },
       home: const HomeGate(),
     );
   }

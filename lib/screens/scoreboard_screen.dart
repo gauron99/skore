@@ -169,48 +169,47 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
   Widget _totalsStrip(BuildContext context) {
     final totals = game.totals;
     final leaders = game.leaders.toSet();
-    return SizedBox(
-      height: 112,
-      // Center the cards when they fit; shrinkWrap keeps the list only as
-      // wide as its content (it still scrolls once players overflow).
-      child: Center(
-        child: ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(12),
-          scrollDirection: Axis.horizontal,
-          itemCount: game.players.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, i) {
-            final isLeader = leaders.contains(i);
-            return Card(
-              color: isLeader
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : null,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isLeader) ...[
-                          const Icon(Icons.emoji_events, size: 16),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(game.players[i],
-                            style: Theme.of(context).textTheme.labelLarge),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text('${totals[i]}',
-                        style: Theme.of(context).textTheme.headlineSmall),
-                  ],
-                ),
-              ),
-            );
-          },
+    // Intrinsic height (no fixed size) so the cards grow with the text
+    // scale; centered when they fit, horizontally scrollable when not.
+    return Center(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 8,
+          children: [
+            for (var i = 0; i < game.players.length; i++)
+              _playerCard(context, i, totals[i], leaders.contains(i)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _playerCard(
+      BuildContext context, int index, int total, bool isLeader) {
+    return Card(
+      color: isLeader ? Theme.of(context).colorScheme.primaryContainer : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isLeader) ...[
+                  const Icon(Icons.emoji_events, size: 16),
+                  const SizedBox(width: 4),
+                ],
+                Text(game.players[index],
+                    style: Theme.of(context).textTheme.labelLarge),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('$total', style: Theme.of(context).textTheme.headlineSmall),
+          ],
         ),
       ),
     );
@@ -222,6 +221,10 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
         child: Text('Add the first round with the button below.'),
       );
     }
+    final theme = Theme.of(context);
+    // Very light grid: faint verticals between players; DataTable draws the
+    // faint horizontals between rounds itself, from the theme dividerColor.
+    final gridColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
     // Newest round first, so the latest scores are visible without scrolling.
     // topCenter keeps the table horizontally centered when it fits on screen.
     return Align(
@@ -229,31 +232,31 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SingleChildScrollView(
-          child: DataTable(
-            border: TableBorder(
-              verticalInside: BorderSide(
-                width: 1,
-                color: Theme.of(context).colorScheme.outlineVariant,
+          child: Theme(
+            data: theme.copyWith(dividerColor: gridColor),
+            child: DataTable(
+              border: TableBorder(
+                verticalInside: BorderSide(width: 1, color: gridColor),
               ),
+              columns: [
+                const DataColumn(label: Text('#')),
+                for (final name in game.players)
+                  DataColumn(
+                    headingRowAlignment: MainAxisAlignment.center,
+                    label: Text(name),
+                  ),
+              ],
+              rows: [
+                for (var r = game.rounds.length - 1; r >= 0; r--)
+                  DataRow(
+                    cells: [
+                      DataCell(Text('R${r + 1}')),
+                      for (final score in game.rounds[r])
+                        DataCell(Center(child: Text('$score'))),
+                    ],
+                  ),
+              ],
             ),
-            columns: [
-              const DataColumn(label: Text('#')),
-              for (final name in game.players)
-                DataColumn(
-                  headingRowAlignment: MainAxisAlignment.center,
-                  label: Text(name),
-                ),
-            ],
-            rows: [
-              for (var r = game.rounds.length - 1; r >= 0; r--)
-                DataRow(
-                  cells: [
-                    DataCell(Text('R${r + 1}')),
-                    for (final score in game.rounds[r])
-                      DataCell(Center(child: Text('$score'))),
-                  ],
-                ),
-            ],
           ),
         ),
       ),
@@ -341,7 +344,12 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       defaultColumnWidth: const IntrinsicColumnWidth(),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       border: TableBorder(
-        verticalInside: BorderSide(color: theme.colorScheme.outlineVariant),
+        verticalInside: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+        ),
+        horizontalInside: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+        ),
       ),
       children: [
         TableRow(
