@@ -1,0 +1,63 @@
+name: CI
+
+# Runs on every push to main, every PR targeting main, and on manual dispatch.
+# Analyzes, tests, and builds a debug APK as a compile check. The APK is
+# uploaded as an artifact only on manual dispatch (3-day retention) to stay
+# inside the free tier's Actions storage.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The Android Gradle Plugin declared by the Flutter template requires
+      # JDK 17+. setup-java also caches ~/.gradle via cache: 'gradle'.
+      - name: Setup JDK 17 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      # Install Flutter. cache: true caches the Flutter SDK install and the
+      # pub cache (~/.pub-cache) keyed on the Flutter version + OS.
+      - name: Setup Flutter 3.44.x stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.x'
+          cache: true
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      # Output lands at build/app/outputs/flutter-apk/app-debug.apk
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      # Upload only on a manual run (Actions tab -> Run workflow); this is the
+      # supported way to get an installable APK for sideloading.
+      - name: Upload APK artifact (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: skore-debug-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 3
