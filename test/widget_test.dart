@@ -22,6 +22,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), 'Ana');
     await tester.enterText(find.byType(TextField).at(1), 'Ben');
     await tester.ensureVisible(find.text('Start game'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -52,6 +53,7 @@ void main() {
     await tester.enterText(fields.at(1), 'Ben');
     await tester.enterText(fields.at(2), '1'); // round limit
     await tester.ensureVisible(find.text('Start game'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -83,6 +85,7 @@ void main() {
     await tester.enterText(fields.at(1), 'Ben');
     await tester.enterText(fields.at(2), '1'); // round limit
     await tester.ensureVisible(find.text('Start game'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -128,8 +131,10 @@ void main() {
     await tester.enterText(fields.at(1), 'Ben');
     await tester.enterText(fields.at(2), '1'); // round limit
     await tester.ensureVisible(find.text('Lowest points wins'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Lowest points wins'));
     await tester.ensureVisible(find.text('Start game'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -141,6 +146,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ben wins with 3 points!'), findsOneWidget);
+  });
+
+  testWidgets('game ends when a player reaches the score target',
+      (tester) async {
+    await pumpApp(tester);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.enterText(fields.at(3), '10'); // score target
+    await tester.ensureVisible(find.text('Start game'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('playing to 10'), findsOneWidget);
+
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '4');
+    await tester.enterText(find.widgetWithText(TextField, 'Ben'), '3');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add round'), findsOneWidget); // 4:3 — still going
+
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '7');
+    await tester.enterText(find.widgetWithText(TextField, 'Ben'), '1');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // Ana hit 11 >= 10: game over, standings shown.
+    expect(find.text('Ana wins with 11 points!'), findsOneWidget);
+    expect(find.text('Add round'), findsNothing);
   });
 
   testWidgets('text scales up on large screens', (tester) async {

@@ -24,6 +24,7 @@ class _SetupScreenState extends State<SetupScreen> {
     TextEditingController(),
   ];
   final TextEditingController _roundLimit = TextEditingController();
+  final TextEditingController _scoreTarget = TextEditingController();
   bool _lowestWins = false;
 
   @override
@@ -32,6 +33,7 @@ class _SetupScreenState extends State<SetupScreen> {
       controller.dispose();
     }
     _roundLimit.dispose();
+    _scoreTarget.dispose();
     super.dispose();
   }
 
@@ -58,9 +60,18 @@ class _SetupScreenState extends State<SetupScreen> {
       );
       return;
     }
+    final scoreText = _scoreTarget.text.trim();
+    final scoreTarget = scoreText.isEmpty ? null : int.parse(scoreText);
+    if (scoreTarget != null && scoreTarget < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Score target must be at least 1.')),
+      );
+      return;
+    }
     widget.onStart(Game(
       players: players,
       targetRounds: limit,
+      targetScore: scoreTarget,
       lowestWins: _lowestWins,
     ));
   }
@@ -124,6 +135,20 @@ class _SetupScreenState extends State<SetupScreen> {
             decoration: const InputDecoration(
               labelText: 'Number of rounds (optional)',
               helperText: 'Leave empty to play until you end the game.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _scoreTarget,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              labelText: 'Play until X points (optional)',
+              helperText:
+                  'The game ends once a player reaches this total — who '
+                  'wins is still decided by the scoring direction.',
+              helperMaxLines: 2,
               border: OutlineInputBorder(),
             ),
           ),

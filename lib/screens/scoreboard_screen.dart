@@ -87,13 +87,17 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     final played = game.rounds.length;
     final target = game.targetRounds;
     final plural = played == 1 ? '' : 's';
+    final scoreSuffix =
+        game.targetScore == null ? '' : ' · playing to ${game.targetScore}';
     if (game.isOver) {
       return 'Final standings · $played round$plural played';
     }
     if (target != null) {
-      return 'Round ${played + 1} of $target';
+      return 'Round ${played + 1} of $target$scoreSuffix';
     }
-    return played == 0 ? 'No rounds played yet' : '$played round$plural played';
+    final base =
+        played == 0 ? 'No rounds played yet' : '$played round$plural played';
+    return '$base$scoreSuffix';
   }
 
   @override

@@ -67,6 +67,50 @@ void main() {
     });
   });
 
+  group('score-target games', () {
+    test('end once a player reaches the target', () {
+      final game = Game(players: ['A', 'B'], targetScore: 20);
+      game.addRound([10, 5]);
+      expect(game.isOver, isFalse);
+      game.addRound([10, 5]);
+      expect(game.isOver, isTrue);
+    });
+
+    test('the target only ends the game — lowest can still win', () {
+      final game = Game(players: ['A', 'B'], targetScore: 20, lowestWins: true)
+        ..addRound([21, 4]);
+      expect(game.isOver, isTrue);
+      expect(game.leaders, [1]);
+    });
+
+    test('undo drops back below the target and reopens the game', () {
+      final game = Game(players: ['A'], targetScore: 10)..addRound([12]);
+      expect(game.isOver, isTrue);
+      game.undoLastRound();
+      expect(game.isOver, isFalse);
+    });
+
+    test('combines with a round limit — whichever hits first ends it', () {
+      final game =
+          Game(players: ['A'], targetRounds: 5, targetScore: 10);
+      game.addRound([11]);
+      expect(game.isOver, isTrue);
+    });
+
+    test('JSON round-trip preserves the target; old blobs stay uncapped', () {
+      final copy =
+          Game.fromJson(Game(players: ['A'], targetScore: 50).toJson());
+      expect(copy.targetScore, 50);
+      final legacy = Game.fromJson({
+        'players': ['A'],
+        'rounds': <List<int>>[],
+        'targetRounds': null,
+        'endedManually': false,
+      });
+      expect(legacy.targetScore, isNull);
+    });
+  });
+
   test('addRound rejects a score-count mismatch', () {
     final game = Game(players: ['A', 'B']);
     expect(() => game.addRound([1]), throwsArgumentError);
