@@ -13,8 +13,11 @@ A simple score counter for card games, built with Flutter. Targets Android
   (negatives welcome); running totals are always on screen and the current
   leader wears the crown. Highest points win by default — flip the *Lowest
   points wins* switch at setup for games scored the other way (Hearts-style).
-- **Survives restarts.** The whole game is saved on-device after every change
+- **Survives restarts.** Everything is saved on-device after every change
   (`shared_preferences`), so closing the app never loses a game.
+- **Past games.** Starting a new game archives the old one — the history
+  screen lists every game (date, totals, winner) with full standings a tap
+  away. Delete games one by one, or wipe everything with *Delete all data*.
 - **Undo.** The last round can always be taken back — totals are computed from
   the round history, never stored.
 
@@ -37,8 +40,8 @@ JDK 17 + the Android SDK.
 
 ## Layout
 
-    lib/main.dart      app entry + saved-game restore
-    lib/data/          Game model + shared_preferences persistence
-    lib/screens/       setup + scoreboard screens
+    lib/main.dart      app entry + saved-data restore
+    lib/data/          Game/AppData models + shared_preferences persistence
+    lib/screens/       setup, scoreboard, and past-games screens
     lib/widgets/       round-entry dialog
-    test/              model unit tests + widget tests
+    test/              model + persistence unit tests, widget tests

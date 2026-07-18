@@ -40,7 +40,7 @@ void main() {
 
     // The mutation was persisted immediately.
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('skore.game'), contains('[[10,7]]'));
+    expect(prefs.getString('skore.data'), contains('[[10,7]]'));
   });
 
   testWidgets('fixed-length game auto-ends with final standings',
@@ -66,6 +66,57 @@ void main() {
     expect(find.text('Ana wins with 5 points!'), findsOneWidget);
     expect(find.text('New game'), findsOneWidget);
     expect(find.text('Add round'), findsNothing);
+
+    // The paper-style sheet: round rows and the sums under the double rule.
+    expect(find.text('R1'), findsOneWidget);
+    expect(find.text('Σ'), findsOneWidget);
+    expect(find.text('5'), findsWidgets);
+    expect(find.text('3'), findsWidgets);
+  });
+
+  testWidgets('finished games are archived, viewable, and deletable',
+      (tester) async {
+    await pumpApp(tester);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.enterText(fields.at(2), '1'); // round limit
+    await tester.ensureVisible(find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '5');
+    await tester.enterText(find.widgetWithText(TextField, 'Ben'), '3');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // "New game" archives instead of discarding.
+    await tester.tap(find.text('New game'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start game'), findsOneWidget);
+
+    // The archived game shows up in Past games.
+    await tester.tap(find.byIcon(Icons.history));
+    await tester.pumpAndSettle();
+    expect(find.text('Ana 5 · Ben 3'), findsOneWidget);
+    expect(find.textContaining('winner: Ana'), findsOneWidget);
+
+    // Delete all data -> back on a fresh setup, nothing stored.
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete all data'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start game'), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('skore.data'), isNull);
   });
 
   testWidgets('lowest-points-wins game crowns the lowest total',
@@ -92,7 +143,8 @@ void main() {
     expect(find.text('Ben wins with 3 points!'), findsOneWidget);
   });
 
-  testWidgets('a saved game is restored on launch', (tester) async {
+  testWidgets('a saved game is restored on launch (legacy format migrates)',
+      (tester) async {
     SharedPreferences.setMockInitialValues({
       'skore.game':
           '{"players":["Ana","Ben"],"rounds":[[4,9]],"targetRounds":null,'

@@ -9,7 +9,9 @@ class Game {
     this.targetRounds,
     this.lowestWins = false,
     this.endedManually = false,
-  }) : rounds = rounds ?? [];
+    DateTime? startedAt,
+  })  : rounds = rounds ?? [],
+        startedAt = startedAt ?? DateTime.now();
 
   /// Player names in seating order. Fixed for the lifetime of a game.
   final List<String> players;
@@ -25,6 +27,9 @@ class Game {
 
   /// Set when an open-ended game is ended with the "End game" action.
   bool endedManually;
+
+  /// When the game was created; shown in the past-games list.
+  final DateTime startedAt;
 
   bool get isOver =>
       endedManually || (targetRounds != null && rounds.length >= targetRounds!);
@@ -94,6 +99,7 @@ class Game {
         'targetRounds': targetRounds,
         'lowestWins': lowestWins,
         'endedManually': endedManually,
+        'startedAt': startedAt.toIso8601String(),
       };
 
   factory Game.fromJson(Map<String, dynamic> json) => Game(
@@ -106,5 +112,9 @@ class Game {
         // Missing in blobs saved before the option existed -> highest wins.
         lowestWins: json['lowestWins'] as bool? ?? false,
         endedManually: json['endedManually'] as bool? ?? false,
+        // Blobs from before the field existed fall back to "now".
+        startedAt: json['startedAt'] == null
+            ? null
+            : DateTime.parse(json['startedAt'] as String),
       );
 }

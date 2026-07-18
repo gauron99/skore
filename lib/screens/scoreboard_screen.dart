@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../data/game.dart';
-import '../data/game_store.dart';
 import '../widgets/round_entry_dialog.dart';
 
 enum _MenuAction { undo, endGame, newGame }
@@ -14,10 +13,16 @@ class ScoreboardScreen extends StatefulWidget {
     super.key,
     required this.game,
     required this.onNewGame,
+    required this.onShowHistory,
+    required this.onPersist,
   });
 
   final Game game;
   final VoidCallback onNewGame;
+  final VoidCallback onShowHistory;
+
+  /// Called after every mutation of [game] so the owner can save it.
+  final Future<void> Function() onPersist;
 
   @override
   State<ScoreboardScreen> createState() => _ScoreboardScreenState();
@@ -36,23 +41,24 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     );
     if (scores == null) return;
     setState(() => game.addRound(scores));
-    await GameStore.save(game);
+    await widget.onPersist();
   }
 
   Future<void> _undoLastRound() async {
     setState(() => game.undoLastRound());
-    await GameStore.save(game);
+    await widget.onPersist();
   }
 
   Future<void> _endGame() async {
     final confirmed = await _confirm('End this game and show final standings?');
     if (!confirmed) return;
     setState(() => game.endedManually = true);
-    await GameStore.save(game);
+    await widget.onPersist();
   }
 
   Future<void> _newGame() async {
-    final confirmed = await _confirm('Discard this game and start a new one?');
+    final confirmed =
+        await _confirm('Archive this game and start a new one?');
     if (!confirmed) return;
     widget.onNewGame();
   }
@@ -97,6 +103,11 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
         title: const Text('Skóre'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Past games',
+            onPressed: widget.onShowHistory,
+          ),
           PopupMenuButton<_MenuAction>(
             onSelected: (action) {
               switch (action) {
@@ -251,7 +262,6 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
 
   Widget _finalStandings(BuildContext context) {
     final totals = game.totals;
-    final standings = game.standings;
     final winners = game.leaders;
     final winnerNames = winners.map((i) => game.players[i]).join(' & ');
     final String headline;
@@ -291,27 +301,14 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: standings.length,
-            itemBuilder: (context, position) {
-              final playerIndex = standings[position];
-              final isWinner = winners.contains(playerIndex);
-              return ListTile(
-                leading: CircleAvatar(child: Text('${position + 1}')),
-                title: Text(game.players[playerIndex]),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isWinner) ...[
-                      const Icon(Icons.emoji_events, size: 18),
-                      const SizedBox(width: 6),
-                    ],
-                    Text('${totals[playerIndex]}',
-                        style: Theme.of(context).textTheme.titleLarge),
-                  ],
-                ),
-              );
-            },
+          child: SingleChildScrollView(
+            child: Center(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _paperSheet(context),
+              ),
+            ),
           ),
         ),
         SafeArea(
@@ -323,6 +320,77 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
               label: const Text('New game'),
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  /// The finished score sheet, paper style: every round in play order, a
+  /// double rule, then the final sums.
+  Widget _paperSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    final totals = game.totals;
+    final winners = game.leaders.toSet();
+
+    Widget cell(Widget child) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: Center(child: child),
+        );
+
+    return Table(
+      defaultColumnWidth: const IntrinsicColumnWidth(),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      border: TableBorder(
+        verticalInside: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      children: [
+        TableRow(
+          children: [
+            cell(Text('#', style: theme.textTheme.labelLarge)),
+            for (var i = 0; i < game.players.length; i++)
+              cell(Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (winners.contains(i)) ...[
+                    const Icon(Icons.emoji_events, size: 16),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(game.players[i], style: theme.textTheme.labelLarge),
+                ],
+              )),
+          ],
+        ),
+        for (var r = 0; r < game.rounds.length; r++)
+          TableRow(
+            children: [
+              cell(Text('R${r + 1}')),
+              for (final score in game.rounds[r]) cell(Text('$score')),
+            ],
+          ),
+        // The double line under the last round, like on a paper score sheet:
+        // a short row whose top and bottom borders form the two strokes.
+        TableRow(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: theme.colorScheme.onSurface),
+              bottom: BorderSide(color: theme.colorScheme.onSurface),
+            ),
+          ),
+          children: [
+            for (var i = 0; i <= game.players.length; i++)
+              const SizedBox(height: 3),
+          ],
+        ),
+        TableRow(
+          children: [
+            cell(Text('Σ', style: theme.textTheme.titleMedium)),
+            for (var i = 0; i < game.players.length; i++)
+              cell(Text(
+                '${totals[i]}',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              )),
+          ],
         ),
       ],
     );

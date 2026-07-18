@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'data/app_data.dart';
 import 'data/game.dart';
 import 'data/game_store.dart';
+import 'screens/history_screen.dart';
 import 'screens/scoreboard_screen.dart';
 import 'screens/setup_screen.dart';
 
@@ -24,8 +26,8 @@ class SkoreApp extends StatelessWidget {
   }
 }
 
-/// Restores any saved game on launch and switches between the setup screen
-/// (no game) and the scoreboard (game in progress or finished).
+/// Restores saved data on launch and switches between the setup screen (no
+/// active game) and the scoreboard. Owns every mutation of [AppData].
 class HomeGate extends StatefulWidget {
   const HomeGate({super.key});
 
@@ -34,41 +36,71 @@ class HomeGate extends StatefulWidget {
 }
 
 class _HomeGateState extends State<HomeGate> {
-  Game? _game;
-  bool _restored = false;
+  AppData? _data;
 
   @override
   void initState() {
     super.initState();
-    GameStore.load().then((game) {
+    GameStore.load().then((data) {
       if (!mounted) return;
-      setState(() {
-        _game = game;
-        _restored = true;
-      });
+      setState(() => _data = data);
     });
   }
 
-  Future<void> _startGame(Game game) async {
-    await GameStore.save(game);
-    if (!mounted) return;
-    setState(() => _game = game);
+  Future<void> _persist() async {
+    final data = _data;
+    if (data != null) {
+      await GameStore.save(data);
+    }
   }
 
-  Future<void> _newGame() async {
-    await GameStore.clear();
-    if (!mounted) return;
-    setState(() => _game = null);
+  Future<void> _startGame(Game game) async {
+    setState(() => _data!.current = game);
+    await _persist();
+  }
+
+  /// "New game" from the scoreboard: archive what's there, back to setup.
+  Future<void> _archiveAndNew() async {
+    setState(() => _data!.archiveCurrent());
+    await _persist();
+  }
+
+  Future<void> _deleteAll() async {
+    setState(() => _data = AppData());
+    await GameStore.deleteAll();
+  }
+
+  void _showHistory() {
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute<void>(
+        builder: (_) => HistoryScreen(
+          data: _data!,
+          onPersist: _persist,
+          onDeleteAll: _deleteAll,
+        ),
+      ),
+    )
+        .then((_) {
+      // Deletions in the history screen may have changed what to show.
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_restored) {
+    final data = _data;
+    if (data == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final game = _game;
+    final game = data.current;
     return game == null
-        ? SetupScreen(onStart: _startGame)
-        : ScoreboardScreen(game: game, onNewGame: _newGame);
+        ? SetupScreen(onStart: _startGame, onShowHistory: _showHistory)
+        : ScoreboardScreen(
+            game: game,
+            onNewGame: _archiveAndNew,
+            onShowHistory: _showHistory,
+            onPersist: _persist,
+          );
   }
 }

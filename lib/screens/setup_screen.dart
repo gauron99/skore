@@ -5,9 +5,14 @@ import '../data/game.dart';
 
 /// Collects player names and the optional round limit, then starts the game.
 class SetupScreen extends StatefulWidget {
-  const SetupScreen({super.key, required this.onStart});
+  const SetupScreen({
+    super.key,
+    required this.onStart,
+    required this.onShowHistory,
+  });
 
   final ValueChanged<Game> onStart;
+  final VoidCallback onShowHistory;
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -63,7 +68,17 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Skóre — new game'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('Skóre — new game'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Past games',
+            onPressed: widget.onShowHistory,
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

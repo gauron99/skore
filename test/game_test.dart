@@ -127,6 +127,11 @@ void main() {
       expect(copy.isOver, isTrue);
     });
 
+    test('startedAt survives the round-trip', () {
+      final game = Game(players: ['A'], startedAt: DateTime(2026, 7, 18));
+      expect(Game.fromJson(game.toJson()).startedAt, DateTime(2026, 7, 18));
+    });
+
     test('survives encoding to actual JSON text', () {
       final game = Game(players: ['A', 'B'], targetRounds: 3)..addRound([1, 2]);
       final copy = Game.fromJson(
