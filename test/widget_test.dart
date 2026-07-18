@@ -151,6 +151,34 @@ void main() {
     expect(find.text('Ben wins with 3 points!'), findsOneWidget);
   });
 
+  testWidgets('rounds are listed in play order, first round on top',
+      (tester) async {
+    await pumpApp(tester);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await scrollTo(tester, find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    for (final scores in [
+      ['1', '2'],
+      ['3', '4'],
+    ]) {
+      await tester.tap(find.text('Add round'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Ana'), scores[0]);
+      await tester.enterText(find.widgetWithText(TextField, 'Ben'), scores[1]);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+
+    final r1y = tester.getTopLeft(find.text('R1')).dy;
+    final r2y = tester.getTopLeft(find.text('R2')).dy;
+    expect(r1y, lessThan(r2y));
+  });
+
   testWidgets('countdown mode numbers rounds from the top', (tester) async {
     await pumpApp(tester);
 

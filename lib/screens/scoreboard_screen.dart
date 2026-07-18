@@ -229,7 +229,8 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     // Very light grid: faint verticals between players; DataTable draws the
     // faint horizontals between rounds itself, from the theme dividerColor.
     final gridColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
-    // Newest round first, so the latest scores are visible without scrolling.
+    // Rounds in play order, first round on top — R1, R2, … normally, or
+    // R8, R7, … when counting down (labels come from roundNumber either way).
     // topCenter keeps the table horizontally centered when it fits on screen.
     return Align(
       alignment: Alignment.topCenter,
@@ -251,7 +252,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                   ),
               ],
               rows: [
-                for (var r = game.rounds.length - 1; r >= 0; r--)
+                for (var r = 0; r < game.rounds.length; r++)
                   DataRow(
                     cells: [
                       DataCell(Text('R${game.roundNumber(r)}')),
