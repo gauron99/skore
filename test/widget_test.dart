@@ -9,6 +9,14 @@ Future<void> pumpApp(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Scrolls the setup list until [finder] is built and visible. (ListView
+/// builds lazily, so off-screen children don't exist for ensureVisible.)
+Future<void> scrollTo(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(finder, 80,
+      scrollable: find.byType(Scrollable).first);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -18,11 +26,10 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    expect(find.text('Start game'), findsOneWidget);
+    expect(find.text('Players'), findsOneWidget);
     await tester.enterText(find.byType(TextField).at(0), 'Ana');
     await tester.enterText(find.byType(TextField).at(1), 'Ben');
-    await tester.ensureVisible(find.text('Start game'));
-    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Start game'));
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -52,8 +59,7 @@ void main() {
     await tester.enterText(fields.at(0), 'Ana');
     await tester.enterText(fields.at(1), 'Ben');
     await tester.enterText(fields.at(2), '1'); // round limit
-    await tester.ensureVisible(find.text('Start game'));
-    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Start game'));
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -84,8 +90,7 @@ void main() {
     await tester.enterText(fields.at(0), 'Ana');
     await tester.enterText(fields.at(1), 'Ben');
     await tester.enterText(fields.at(2), '1'); // round limit
-    await tester.ensureVisible(find.text('Start game'));
-    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Start game'));
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -101,7 +106,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Yes'));
     await tester.pumpAndSettle();
-    expect(find.text('Start game'), findsOneWidget);
+    expect(find.text('Players'), findsOneWidget);
 
     // The archived game shows up in Past games.
     await tester.tap(find.byIcon(Icons.history));
@@ -116,7 +121,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Yes'));
     await tester.pumpAndSettle();
-    expect(find.text('Start game'), findsOneWidget);
+    expect(find.text('Players'), findsOneWidget);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('skore.data'), isNull);
@@ -130,11 +135,9 @@ void main() {
     await tester.enterText(fields.at(0), 'Ana');
     await tester.enterText(fields.at(1), 'Ben');
     await tester.enterText(fields.at(2), '1'); // round limit
-    await tester.ensureVisible(find.text('Lowest points wins'));
-    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Lowest points wins'));
     await tester.tap(find.text('Lowest points wins'));
-    await tester.ensureVisible(find.text('Start game'));
-    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Start game'));
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 
@@ -148,6 +151,34 @@ void main() {
     expect(find.text('Ben wins with 3 points!'), findsOneWidget);
   });
 
+  testWidgets('countdown mode numbers rounds from the top', (tester) async {
+    await pumpApp(tester);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.enterText(fields.at(2), '2'); // round limit
+    await scrollTo(tester, find.text('Count rounds down'));
+    await tester.tap(find.text('Count rounds down'));
+    await scrollTo(tester, find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Round 2 of 2'), findsOneWidget);
+
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    expect(find.text('Round 2 scores'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '4');
+    await tester.enterText(find.widgetWithText(TextField, 'Ben'), '3');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // Next round counts down, and the played round is labeled from the top.
+    expect(find.text('Round 1 of 2'), findsOneWidget);
+    expect(find.text('R2'), findsOneWidget);
+  });
+
   testWidgets('game ends when a player reaches the score target',
       (tester) async {
     await pumpApp(tester);
@@ -156,8 +187,7 @@ void main() {
     await tester.enterText(fields.at(0), 'Ana');
     await tester.enterText(fields.at(1), 'Ben');
     await tester.enterText(fields.at(3), '10'); // score target
-    await tester.ensureVisible(find.text('Start game'));
-    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text('Start game'));
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
 

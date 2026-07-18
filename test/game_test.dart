@@ -111,6 +111,36 @@ void main() {
     });
   });
 
+  group('countdown rounds', () {
+    test('round numbers count down from the limit', () {
+      final game = Game(players: ['A'], targetRounds: 8, countDown: true);
+      expect(game.nextRoundNumber, 8);
+      game.addRound([1]);
+      expect(game.roundNumber(0), 8);
+      expect(game.nextRoundNumber, 7);
+    });
+
+    test('counting up stays the default', () {
+      final game = Game(players: ['A'], targetRounds: 3)..addRound([1]);
+      expect(game.roundNumber(0), 1);
+      expect(game.nextRoundNumber, 2);
+    });
+
+    test('countDown without a round limit falls back to counting up', () {
+      final game = Game(players: ['A'], countDown: true)..addRound([1]);
+      expect(game.roundNumber(0), 1);
+      expect(game.nextRoundNumber, 2);
+    });
+
+    test('JSON round-trip preserves the flag', () {
+      final copy = Game.fromJson(
+        Game(players: ['A'], targetRounds: 2, countDown: true).toJson(),
+      );
+      expect(copy.countDown, isTrue);
+      expect(copy.nextRoundNumber, 2);
+    });
+  });
+
   test('addRound rejects a score-count mismatch', () {
     final game = Game(players: ['A', 'B']);
     expect(() => game.addRound([1]), throwsArgumentError);

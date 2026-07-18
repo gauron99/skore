@@ -25,7 +25,16 @@ class _SetupScreenState extends State<SetupScreen> {
   ];
   final TextEditingController _roundLimit = TextEditingController();
   final TextEditingController _scoreTarget = TextEditingController();
+  bool _countDown = false;
   bool _lowestWins = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The countdown switch only applies to fixed-length games; re-render as
+    // the round limit is typed so its enabled state tracks the field.
+    _roundLimit.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -72,6 +81,7 @@ class _SetupScreenState extends State<SetupScreen> {
       players: players,
       targetRounds: limit,
       targetScore: scoreTarget,
+      countDown: limit != null && _countDown,
       lowestWins: _lowestWins,
     ));
   }
@@ -138,7 +148,18 @@ class _SetupScreenState extends State<SetupScreen> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            value: _roundLimit.text.trim().isNotEmpty && _countDown,
+            onChanged: _roundLimit.text.trim().isNotEmpty
+                ? (value) => setState(() => _countDown = value)
+                : null,
+            title: const Text('Count rounds down'),
+            subtitle:
+                const Text('First round is the highest number (R8, R7, …).'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 8),
           TextField(
             controller: _scoreTarget,
             keyboardType: TextInputType.number,

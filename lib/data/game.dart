@@ -8,6 +8,7 @@ class Game {
     List<List<int>>? rounds,
     this.targetRounds,
     this.targetScore,
+    this.countDown = false,
     this.lowestWins = false,
     this.endedManually = false,
     DateTime? startedAt,
@@ -27,6 +28,10 @@ class Game {
   /// end-of-game trigger — who wins stays with [lowestWins]. Null = no cap.
   final int? targetScore;
 
+  /// Number fixed-length rounds from the top (R8, R7, … R1) instead of up.
+  /// Only meaningful with [targetRounds]; ignored otherwise.
+  final bool countDown;
+
   /// When true the fewest points lead and win (Hearts-style scoring).
   final bool lowestWins;
 
@@ -40,6 +45,15 @@ class Game {
       endedManually ||
       (targetRounds != null && rounds.length >= targetRounds!) ||
       (targetScore != null && totals.any((total) => total >= targetScore!));
+
+  /// Display number of the round at [index]: 1-based counting up, or
+  /// counting down from [targetRounds] when [countDown] is set.
+  int roundNumber(int index) => countDown && targetRounds != null
+      ? targetRounds! - index
+      : index + 1;
+
+  /// Display number of the round about to be played.
+  int get nextRoundNumber => roundNumber(rounds.length);
 
   /// Cumulative score per player across all played rounds.
   List<int> get totals {
@@ -105,6 +119,7 @@ class Game {
         'rounds': rounds,
         'targetRounds': targetRounds,
         'targetScore': targetScore,
+        'countDown': countDown,
         'lowestWins': lowestWins,
         'endedManually': endedManually,
         'startedAt': startedAt.toIso8601String(),
@@ -118,6 +133,7 @@ class Game {
         ],
         targetRounds: json['targetRounds'] as int?,
         targetScore: json['targetScore'] as int?,
+        countDown: json['countDown'] as bool? ?? false,
         // Missing in blobs saved before the option existed -> highest wins.
         lowestWins: json['lowestWins'] as bool? ?? false,
         endedManually: json['endedManually'] as bool? ?? false,

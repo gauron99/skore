@@ -36,7 +36,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       context: context,
       builder: (context) => RoundEntryDialog(
         players: game.players,
-        roundNumber: game.rounds.length + 1,
+        roundNumber: game.nextRoundNumber,
       ),
     );
     if (scores == null) return;
@@ -93,7 +93,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       return 'Final standings · $played round$plural played';
     }
     if (target != null) {
-      return 'Round ${played + 1} of $target$scoreSuffix';
+      return 'Round ${game.nextRoundNumber} of $target$scoreSuffix';
     }
     final base =
         played == 0 ? 'No rounds played yet' : '$played round$plural played';
@@ -254,7 +254,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 for (var r = game.rounds.length - 1; r >= 0; r--)
                   DataRow(
                     cells: [
-                      DataCell(Text('R${r + 1}')),
+                      DataCell(Text('R${game.roundNumber(r)}')),
                       for (final score in game.rounds[r])
                         DataCell(Center(child: Text('$score'))),
                     ],
@@ -375,7 +375,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
         for (var r = 0; r < game.rounds.length; r++)
           TableRow(
             children: [
-              cell(Text('R${r + 1}')),
+              cell(Text('R${game.roundNumber(r)}')),
               for (final score in game.rounds[r]) cell(Text('$score')),
             ],
           ),
