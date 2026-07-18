@@ -77,6 +77,37 @@ void main() {
     expect(game.standings, [1, 0, 2]);
   });
 
+  group('lowest points wins', () {
+    test('leader is the lowest total', () {
+      final game = Game(players: ['A', 'B'], lowestWins: true)
+        ..addRound([5, 2]);
+      expect(game.leaders, [1]);
+    });
+
+    test('standings sort lowest first', () {
+      final game = Game(players: ['A', 'B', 'C'], lowestWins: true)
+        ..addRound([3, 9, 1]);
+      expect(game.standings, [2, 0, 1]);
+    });
+
+    test('JSON round-trip preserves the flag', () {
+      final copy = Game.fromJson(
+        Game(players: ['A'], lowestWins: true).toJson(),
+      );
+      expect(copy.lowestWins, isTrue);
+    });
+
+    test('saves from before the option existed default to highest wins', () {
+      final copy = Game.fromJson({
+        'players': ['A'],
+        'rounds': <List<int>>[],
+        'targetRounds': null,
+        'endedManually': false,
+      });
+      expect(copy.lowestWins, isFalse);
+    });
+  });
+
   group('JSON round-trip', () {
     test('preserves an open-ended game', () {
       final game = Game(players: ['Ana', 'Ben'])..addRound([10, -2]);

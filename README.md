@@ -11,7 +11,8 @@ A simple score counter for card games, built with Flutter. Targets Android
   hit *End game*.
 - **Rounds in, totals out.** Enter every player's score once per round
   (negatives welcome); running totals are always on screen and the current
-  leader wears the crown.
+  leader wears the crown. Highest points win by default — flip the *Lowest
+  points wins* switch at setup for games scored the other way (Hearts-style).
 - **Survives restarts.** The whole game is saved on-device after every change
   (`shared_preferences`), so closing the app never loses a game.
 - **Undo.** The last round can always be taken back — totals are computed from

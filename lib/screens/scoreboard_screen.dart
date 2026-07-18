@@ -95,6 +95,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Skóre'),
+        centerTitle: true,
         actions: [
           PopupMenuButton<_MenuAction>(
             onSelected: (action) {
@@ -144,6 +145,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(_progressLabel,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium),
         ),
         _totalsStrip(context),
@@ -158,41 +160,47 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     final leaders = game.leaders.toSet();
     return SizedBox(
       height: 112,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(12),
-        scrollDirection: Axis.horizontal,
-        itemCount: game.players.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final isLeader = leaders.contains(i);
-          return Card(
-            color: isLeader
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (isLeader) ...[
-                        const Icon(Icons.emoji_events, size: 16),
-                        const SizedBox(width: 4),
+      // Center the cards when they fit; shrinkWrap keeps the list only as
+      // wide as its content (it still scrolls once players overflow).
+      child: Center(
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(12),
+          scrollDirection: Axis.horizontal,
+          itemCount: game.players.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final isLeader = leaders.contains(i);
+            return Card(
+              color: isLeader
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : null,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isLeader) ...[
+                          const Icon(Icons.emoji_events, size: 16),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(game.players[i],
+                            style: Theme.of(context).textTheme.labelLarge),
                       ],
-                      Text(game.players[i],
-                          style: Theme.of(context).textTheme.labelLarge),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text('${totals[i]}',
-                      style: Theme.of(context).textTheme.headlineSmall),
-                ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text('${totals[i]}',
+                        style: Theme.of(context).textTheme.headlineSmall),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -204,23 +212,38 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       );
     }
     // Newest round first, so the latest scores are visible without scrolling.
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    // topCenter keeps the table horizontally centered when it fits on screen.
+    return Align(
+      alignment: Alignment.topCenter,
       child: SingleChildScrollView(
-        child: DataTable(
-          columns: [
-            const DataColumn(label: Text('#')),
-            for (final name in game.players) DataColumn(label: Text(name)),
-          ],
-          rows: [
-            for (var r = game.rounds.length - 1; r >= 0; r--)
-              DataRow(
-                cells: [
-                  DataCell(Text('R${r + 1}')),
-                  for (final score in game.rounds[r]) DataCell(Text('$score')),
-                ],
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+          child: DataTable(
+            border: TableBorder(
+              verticalInside: BorderSide(
+                width: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
               ),
-          ],
+            ),
+            columns: [
+              const DataColumn(label: Text('#')),
+              for (final name in game.players)
+                DataColumn(
+                  headingRowAlignment: MainAxisAlignment.center,
+                  label: Text(name),
+                ),
+            ],
+            rows: [
+              for (var r = game.rounds.length - 1; r >= 0; r--)
+                DataRow(
+                  cells: [
+                    DataCell(Text('R${r + 1}')),
+                    for (final score in game.rounds[r])
+                      DataCell(Center(child: Text('$score'))),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -246,6 +269,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Text(_progressLabel,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium),
         ),
         Card(
@@ -259,6 +283,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(headline,
+                      textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium),
                 ),
               ],

@@ -7,6 +7,7 @@ class Game {
     required this.players,
     List<List<int>>? rounds,
     this.targetRounds,
+    this.lowestWins = false,
     this.endedManually = false,
   }) : rounds = rounds ?? [];
 
@@ -18,6 +19,9 @@ class Game {
 
   /// Total number of rounds for a fixed-length game, null for open-ended.
   final int? targetRounds;
+
+  /// When true the fewest points lead and win (Hearts-style scoring).
+  final bool lowestWins;
 
   /// Set when an open-ended game is ended with the "End game" action.
   bool endedManually;
@@ -36,24 +40,29 @@ class Game {
     return sums;
   }
 
-  /// Indices of the player(s) with the highest total — several when tied.
-  /// Empty before the first round so nobody wears the crown at 0:0.
+  /// Indices of the player(s) with the best total — several when tied. Best
+  /// means highest, or lowest when [lowestWins] is set. Empty before the
+  /// first round so nobody wears the crown at 0:0.
   List<int> get leaders {
     if (rounds.isEmpty) return const [];
     final sums = totals;
-    final best = sums.reduce((a, b) => a > b ? a : b);
+    final best = sums.reduce(
+      (a, b) => (lowestWins ? a < b : a > b) ? a : b,
+    );
     return [
       for (var i = 0; i < sums.length; i++)
         if (sums[i] == best) i,
     ];
   }
 
-  /// Player indices ordered by total, highest first (ties keep seating order).
+  /// Player indices ordered by total, best first (ties keep seating order).
   List<int> get standings {
     final sums = totals;
     final order = List<int>.generate(players.length, (i) => i);
     order.sort((a, b) {
-      final byTotal = sums[b].compareTo(sums[a]);
+      final byTotal = lowestWins
+          ? sums[a].compareTo(sums[b])
+          : sums[b].compareTo(sums[a]);
       return byTotal != 0 ? byTotal : a.compareTo(b);
     });
     return order;
@@ -83,6 +92,7 @@ class Game {
         'players': players,
         'rounds': rounds,
         'targetRounds': targetRounds,
+        'lowestWins': lowestWins,
         'endedManually': endedManually,
       };
 
@@ -93,6 +103,8 @@ class Game {
             (round as List).cast<int>(),
         ],
         targetRounds: json['targetRounds'] as int?,
+        // Missing in blobs saved before the option existed -> highest wins.
+        lowestWins: json['lowestWins'] as bool? ?? false,
         endedManually: json['endedManually'] as bool? ?? false,
       );
 }

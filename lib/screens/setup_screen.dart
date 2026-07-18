@@ -19,6 +19,7 @@ class _SetupScreenState extends State<SetupScreen> {
     TextEditingController(),
   ];
   final TextEditingController _roundLimit = TextEditingController();
+  bool _lowestWins = false;
 
   @override
   void dispose() {
@@ -52,17 +53,23 @@ class _SetupScreenState extends State<SetupScreen> {
       );
       return;
     }
-    widget.onStart(Game(players: players, targetRounds: limit));
+    widget.onStart(Game(
+      players: players,
+      targetRounds: limit,
+      lowestWins: _lowestWins,
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Skóre — new game')),
+      appBar: AppBar(title: const Text('Skóre — new game'), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Players', style: Theme.of(context).textTheme.titleMedium),
+          Text('Players',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           for (var i = 0; i < _names.length; i++)
             Padding(
@@ -105,7 +112,16 @@ class _SetupScreenState extends State<SetupScreen> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            value: _lowestWins,
+            onChanged: (value) => setState(() => _lowestWins = value),
+            title: const Text('Lowest points wins'),
+            subtitle: const Text(
+                'Crown the fewest points instead of the most (Hearts-style).'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _start,
             icon: const Icon(Icons.play_arrow),

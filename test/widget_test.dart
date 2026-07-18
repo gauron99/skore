@@ -68,6 +68,30 @@ void main() {
     expect(find.text('Add round'), findsNothing);
   });
 
+  testWidgets('lowest-points-wins game crowns the lowest total',
+      (tester) async {
+    await pumpApp(tester);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.enterText(fields.at(2), '1'); // round limit
+    await tester.ensureVisible(find.text('Lowest points wins'));
+    await tester.tap(find.text('Lowest points wins'));
+    await tester.ensureVisible(find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '5');
+    await tester.enterText(find.widgetWithText(TextField, 'Ben'), '3');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ben wins with 3 points!'), findsOneWidget);
+  });
+
   testWidgets('a saved game is restored on launch', (tester) async {
     SharedPreferences.setMockInitialValues({
       'skore.game':
