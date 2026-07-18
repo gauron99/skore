@@ -34,11 +34,19 @@ Flutter must be on your PATH. Then:
 
 ## APK
 
-CI (GitHub Actions) analyzes, tests, and builds a debug APK on every push to
-main, every PR, and on manual dispatch. Trigger the **CI** workflow manually
-(Actions → CI → Run workflow) to get the APK uploaded as a 3-day artifact —
-that is the supported way to produce an installable APK; a local build needs
-JDK 17 + the Android SDK.
+Grab the latest APK from the repo's
+[Releases](https://github.com/gauron99/skore/releases) page — open it in the
+phone's browser, download, and install (sideloading must be allowed). Each
+release is built by CI from its `v*` tag; cut one with
+`gh release create vX.Y.Z --target main --generate-notes`.
+
+CI also analyzes, tests, and compile-checks a debug APK on every push and PR;
+a manual CI run (Actions → CI → Run workflow) uploads that debug APK as a
+3-day artifact. Local builds need JDK 17 + the Android SDK.
+
+Note: release APKs are signed with the CI runner's throwaway debug keystore
+(no secrets involved), so Android may require uninstalling an older release
+before installing a newer one.
 
 ## Layout
 

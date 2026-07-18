@@ -1,0 +1,78 @@
+name: Release APK
+
+# Attaches an installable APK to a GitHub Release so it can be downloaded
+# straight from the phone's browser (public repo — no login needed).
+#
+# TWO ways it runs:
+#   1. push of a `v*` tag -> builds that tag and creates/updates its release
+#   2. workflow_dispatch  -> manual run from the Actions tab, given a tag
+#
+# The APK is a --release build signed with the runner's debug keystore (the
+# Flutter template default — no secrets required). That keystore differs per
+# run, so installing a new release over an older one may need an uninstall
+# first. Persistent signing (hana-style secrets) can be added later.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build (e.g. v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      # The Android Gradle Plugin declared by the Flutter template requires
+      # JDK 17+. setup-java also caches ~/.gradle via cache: 'gradle'.
+      - name: Setup JDK 17 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Flutter 3.44.x stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.x'
+          cache: true
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Name the APK after the tag
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/skore-$TAG.apk"
+          ls -la dist/
+
+      # Creates the release for the tag if it doesn't exist yet, or adds the
+      # APK to it if it does.
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          generate_release_notes: true
+          files: dist/skore-*.apk
