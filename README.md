@@ -44,9 +44,12 @@ CI also analyzes, tests, and compile-checks a debug APK on every push and PR;
 a manual CI run (Actions → CI → Run workflow) uploads that debug APK as a
 3-day artifact. Local builds need JDK 17 + the Android SDK.
 
-Note: release APKs are signed with the CI runner's throwaway debug keystore
-(no secrets involved), so Android may require uninstalling an older release
-before installing a newer one.
+Every release auto-increments its Android versionCode (from the workflow run
+number), so newer releases always register as updates. For updates to install
+**in place** (keeping game data), releases must all carry the same signature:
+run `./scripts/setup-signing.sh` once to create a persistent keystore and set
+the four signing secrets. Until then releases are debug-keystore signed and
+Android will require uninstalling the old version first (which wipes data).
 
 ## Layout
 

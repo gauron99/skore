@@ -58,8 +58,35 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Restore the stable release keystore from secrets (set once via
+      # scripts/setup-signing.sh) so every release carries the SAME
+      # signature — that's what lets the phone update in place and keep the
+      # game data. Without the secrets the build falls back to debug
+      # signing: still installable, but updating needs uninstall first.
+      - name: Set up release signing (when secrets exist)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No signing secrets — falling back to debug signing. Run scripts/setup-signing.sh for in-place updates."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/skore-release.jks
+          {
+            echo "storeFile=skore-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      # versionName comes from the tag, versionCode from the ever-increasing
+      # workflow run number — so every release is guaranteed to register as
+      # an update on the phone without anyone touching pubspec.yaml.
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --build-name="${TAG#v}" --build-number="${{ github.run_number }}"
 
       - name: Name the APK after the tag
         run: |
