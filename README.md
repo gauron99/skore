@@ -50,7 +50,8 @@ Flutter must be on your PATH. Then:
 Grab the latest APK from the repo's
 [Releases](https://github.com/gauron99/skore/releases) page. Open it in the
 phone's browser, download, and install (sideloading must be allowed). Each
-release is built by CI from its `v*` tag.
+release is one signed APK for phones (arm64), about 20MB, same shape as
+Hana's installable file. Not a zip of per-CPU APKs.
 
 Cut a release from a clean tree on `main`:
 

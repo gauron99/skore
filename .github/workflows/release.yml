@@ -86,13 +86,20 @@ jobs:
       # versionName comes from the tag, versionCode from the ever-increasing
       # workflow run number — so every release is guaranteed to register as
       # an update on the phone without anyone touching pubspec.yaml.
+      # One APK for phones (arm64). Not --split-per-abi: that would publish
+      # three files. Fat APKs with every ABI were ~50MB and the phone
+      # installer often failed them after Play Protect.
       - name: Build release APK
-        run: flutter build apk --release --build-name="${TAG#v}" --build-number="${{ github.run_number }}"
+        run: flutter build apk --release --target-platform android-arm64 --build-name="${TAG#v}" --build-number="${{ github.run_number }}"
 
       - name: Name the APK after the tag
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/skore-$TAG.apk"
+          src=build/app/outputs/flutter-apk/app-release.apk
+          if [ ! -f "$src" ]; then
+            src=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          fi
+          cp "$src" "dist/skore-$TAG.apk"
           ls -la dist/
 
       # Creates the release for the tag if it doesn't exist yet, or adds the
