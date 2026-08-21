@@ -5,7 +5,7 @@ A simple score counter for card games, built with Flutter. Targets Android
 
 ## What it does
 
-- **Any table.** Pick the players (2+, named or auto-named) when a game starts.
+- **Any table.** Pick the players (2+) and name each one before the game starts.
 - **Fixed or open-ended.** Set a round limit (optionally numbered from the
   top down — R8, R7, … R1) and/or a score target up front —
   the app calls the final standings after the last round, or the moment a

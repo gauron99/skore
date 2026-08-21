@@ -35,6 +35,9 @@ class _SetupScreenState extends State<SetupScreen> {
     // The countdown switch only applies to fixed-length games; re-render as
     // the round limit is typed so its enabled state tracks the field.
     _roundLimit.addListener(() => setState(() {}));
+    for (final controller in _names) {
+      controller.addListener(() => setState(() {}));
+    }
   }
 
   @override
@@ -48,20 +51,20 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   void _addPlayer() {
-    setState(() => _names.add(TextEditingController()));
+    final controller = TextEditingController();
+    controller.addListener(() => setState(() {}));
+    setState(() => _names.add(controller));
   }
 
   void _removePlayer(int index) {
     setState(() => _names.removeAt(index).dispose());
   }
 
+  bool get _namesReady => _names.every((c) => c.text.trim().isNotEmpty);
+
   void _start() {
-    final players = [
-      for (var i = 0; i < _names.length; i++)
-        _names[i].text.trim().isEmpty
-            ? 'Player ${i + 1}'
-            : _names[i].text.trim(),
-    ];
+    if (!_namesReady) return;
+    final players = [for (final c in _names) c.text.trim()];
     final limitText = _roundLimit.text.trim();
     final limit = limitText.isEmpty ? null : int.parse(limitText);
     if (limit != null && limit < 1) {
@@ -105,7 +108,9 @@ class _SetupScreenState extends State<SetupScreen> {
       _whist = value;
       if (value) {
         while (_names.length < 3) {
-          _names.add(TextEditingController());
+          final controller = TextEditingController();
+          controller.addListener(() => setState(() {}));
+          _names.add(controller);
         }
       }
     });
@@ -234,7 +239,7 @@ class _SetupScreenState extends State<SetupScreen> {
           ],
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: _start,
+            onPressed: _namesReady ? _start : null,
             icon: const Icon(Icons.play_arrow),
             label: const Text('Start game'),
           ),

@@ -45,6 +45,7 @@ If `make shots` fails, fix `scripts/ui_shots.py`. Do not capture with
   not a totals-only dialog.
 - **Add round:** dialog for every player, empty counts as 0.
 - **Setup:** Start game is on screen, not hidden under the system inset.
+  Disabled until every player has a name.
 - **Window:** phone-shaped (default 420x800). Desktop layout is not the target.
 - **Whist:** setup switch. Bid dialog, tap who hit their guess, Finish round.
 - **Progress popups:** guess and round dialogs have See scores. That hides

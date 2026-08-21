@@ -28,6 +28,29 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  testWidgets('Start game stays off until every player is named', (
+    tester,
+  ) async {
+    FilledButton startButton() => tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('Start game'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+
+    await pumpApp(tester);
+    await scrollTo(tester, find.text('Start game'));
+    expect(startButton().onPressed, isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await pumpApp(tester);
+    await tester.enterText(find.byType(TextField).at(0), 'Ana');
+    await tester.enterText(find.byType(TextField).at(1), 'Ben');
+    await tester.pump();
+    await scrollTo(tester, find.text('Start game'));
+    expect(startButton().onPressed, isNotNull);
+  });
+
   testWidgets('setup → scoreboard → first round updates totals and saves', (
     tester,
   ) async {
