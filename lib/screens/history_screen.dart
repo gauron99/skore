@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_data.dart';
 import '../data/game.dart';
+import 'game_sheet_screen.dart';
 
 /// Archived games, newest first: date, totals, and the winner. Games can be
 /// deleted one at a time, or everything at once (including any game in
@@ -23,7 +24,8 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  String _date(DateTime d) => '${d.year}'
+  String _date(DateTime d) =>
+      '${d.year}'
       '-${d.month.toString().padLeft(2, '0')}'
       '-${d.day.toString().padLeft(2, '0')}';
 
@@ -56,43 +58,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _deleteAll() async {
     final confirmed = await _confirm(
-        'Delete ALL data — every past game and any game in progress?');
+      'Delete ALL data — every past game and any game in progress?',
+    );
     if (!confirmed) return;
     await widget.onDeleteAll();
     if (mounted) Navigator.of(context).pop();
   }
 
   void _showDetails(Game game) {
-    final totals = game.totals;
-    final winners = game.leaders.toSet();
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          '${_date(game.startedAt)} · ${game.rounds.length} '
-          'round${game.rounds.length == 1 ? '' : 's'}',
-          textAlign: TextAlign.center,
+    final rounds = game.rounds.length;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GameSheetScreen(
+          game: game,
+          title:
+              '${_date(game.startedAt)} · $rounds '
+              'round${rounds == 1 ? '' : 's'}',
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final i in game.standings)
-              ListTile(
-                dense: true,
-                leading: winners.contains(i)
-                    ? const Icon(Icons.emoji_events, size: 18)
-                    : const SizedBox(width: 18),
-                title: Text(game.players[i]),
-                trailing: Text('${totals[i]}'),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
   }
@@ -116,6 +98,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: history.isEmpty
           ? const Center(child: Text('No finished games yet.'))
           : ListView.builder(
+              padding: EdgeInsets.only(
+                bottom: 8 + MediaQuery.viewPaddingOf(context).bottom,
+              ),
               itemCount: history.length,
               itemBuilder: (context, i) {
                 // Newest first.

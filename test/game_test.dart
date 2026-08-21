@@ -91,15 +91,15 @@ void main() {
     });
 
     test('combines with a round limit — whichever hits first ends it', () {
-      final game =
-          Game(players: ['A'], targetRounds: 5, targetScore: 10);
+      final game = Game(players: ['A'], targetRounds: 5, targetScore: 10);
       game.addRound([11]);
       expect(game.isOver, isTrue);
     });
 
     test('JSON round-trip preserves the target; old blobs stay uncapped', () {
-      final copy =
-          Game.fromJson(Game(players: ['A'], targetScore: 50).toJson());
+      final copy = Game.fromJson(
+        Game(players: ['A'], targetScore: 50).toJson(),
+      );
       expect(copy.targetScore, 50);
       final legacy = Game.fromJson({
         'players': ['A'],
@@ -139,6 +139,169 @@ void main() {
       expect(copy.countDown, isTrue);
       expect(copy.nextRoundNumber, 2);
     });
+  });
+
+  group('whist', () {
+    Game fresh() => Game(
+      players: ['Ana', 'Ben', 'Cara'],
+      whist: true,
+      whistMaxHand: 2,
+      whistCycles: 3,
+    );
+
+    test('hands run 2 then 1, three stacks, then the game is over', () {
+      final game = fresh();
+      expect(game.whistHandCards, 2);
+      expect(game.whistStackNumber, 1);
+      expect(game.whistDealer, 0);
+      game.lockBids([2, 1, 0]);
+      game.toggleWhistHit(0);
+      game.toggleWhistHit(2);
+      game.finishWhistHand();
+      expect(game.rounds, [
+        [12, 0, 10],
+      ]);
+      expect(game.whistHandCards, 1);
+      game.lockBids([0, 0, 0]);
+      game.toggleWhistHit(1);
+      game.toggleWhistHit(2);
+      game.finishWhistHand();
+      expect(game.rounds.last, [0, 10, 10]);
+      expect(game.whistStackNumber, 2);
+      expect(game.whistDealer, 1);
+      expect(game.whistHandCards, 2);
+    });
+
+    test('marked players score bid plus 10; unmarked score 0', () {
+      final game = fresh();
+      game.lockBids([2, 1, 0]);
+      game.toggleWhistHit(0);
+      game.finishWhistHand();
+      expect(game.rounds.single, [12, 0, 0]);
+    });
+
+    test('nobody marked is allowed and everyone scores 0', () {
+      final game = fresh()..lockBids([2, 1, 0]);
+      expect(game.whistReadyToFinish, isTrue);
+      game.finishWhistHand();
+      expect(game.rounds.single, [0, 0, 0]);
+    });
+
+    test('cannot mark every player as a hit', () {
+      final game = fresh()..lockBids([2, 1, 0]);
+      game.toggleWhistHit(0);
+      game.toggleWhistHit(1);
+      expect(() => game.toggleWhistHit(2), throwsStateError);
+      expect(game.whistHits, [true, true, false]);
+    });
+
+    test('toggle can unmark a hit', () {
+      final game = fresh()..lockBids([2, 1, 0]);
+      game.toggleWhistHit(0);
+      game.toggleWhistHit(0);
+      game.finishWhistHand();
+      expect(game.rounds.single, [0, 0, 0]);
+    });
+
+    test('guesses must not add up to the number of tricks', () {
+      final game = fresh();
+      expect(() => game.lockBids([2, 0, 0]), throwsArgumentError);
+      game.lockBids([2, 1, 0]);
+      expect(game.whistBids, [2, 1, 0]);
+    });
+
+    test('undo clears hits, then unlocks bids, then the last hand', () {
+      final game = fresh();
+      game.lockBids([1, 0, 0]);
+      game.toggleWhistHit(1);
+      game.undoLastRound();
+      expect(game.whistHits, [false, false, false]);
+      expect(game.whistBids, [1, 0, 0]);
+      game.undoLastRound();
+      expect(game.whistBids, isNull);
+      game.lockBids([1, 0, 0]);
+      game.toggleWhistHit(0);
+      game.finishWhistHand();
+      expect(game.rounds, hasLength(1));
+      game.undoLastRound();
+      expect(game.rounds, isEmpty);
+      expect(game.whistHandCards, 2);
+    });
+
+    test('JSON round-trip keeps bids and hits in flight', () {
+      final game = fresh()..lockBids([1, 0, 0]);
+      game.toggleWhistHit(2);
+      final copy = Game.fromJson(game.toJson());
+      expect(copy.whist, isTrue);
+      expect(copy.whistBids, [1, 0, 0]);
+      expect(copy.whistHits, [false, false, true]);
+      expect(copy.whistHandCards, 2);
+    });
+
+    test('toJson always writes a hits list, even if the save omitted it', () {
+      final game = Game.fromJson({
+        'players': ['A', 'B', 'C'],
+        'rounds': <List<int>>[],
+        'endedManually': false,
+        'whist': true,
+        'whistBids': [1, 0, 0],
+      });
+      expect(game.whistHits, [false, false, false]);
+      final json = game.toJson();
+      expect(json['whistHits'], [false, false, false]);
+      game.toggleWhistHit(0);
+      expect(game.toJson()['whistHits'], [true, false, false]);
+    });
+
+    test('legacy saves without whist stay ordinary games', () {
+      final copy = Game.fromJson({
+        'players': ['A'],
+        'rounds': <List<int>>[],
+        'targetRounds': null,
+        'endedManually': false,
+      });
+      expect(copy.whist, isFalse);
+    });
+  });
+
+  test('rematch copies players and rules, not rounds', () {
+    final game = Game(
+      players: ['A', 'B'],
+      targetRounds: 8,
+      targetScore: 50,
+      countDown: true,
+      lowestWins: true,
+    )..addRound([1, 2]);
+    game.endedManually = true;
+    final next = game.rematch();
+    expect(next.players, ['A', 'B']);
+    expect(next.rounds, isEmpty);
+    expect(next.targetRounds, 8);
+    expect(next.targetScore, 50);
+    expect(next.countDown, isTrue);
+    expect(next.lowestWins, isTrue);
+    expect(next.endedManually, isFalse);
+    expect(next.isOver, isFalse);
+  });
+
+  test('rematch keeps whist rules', () {
+    final next = Game(
+      players: ['A', 'B', 'C'],
+      whist: true,
+      whistMaxHand: 8,
+      whistCycles: 3,
+    ).rematch();
+    expect(next.whist, isTrue);
+    expect(next.whistMaxHand, 8);
+    expect(next.whistCycles, 3);
+    expect(next.rounds, isEmpty);
+  });
+
+  test('resultHeadline names the winner', () {
+    final game = Game(players: ['Ana', 'Ben'])..addRound([5, 3]);
+    expect(game.resultHeadline, 'Ana wins with 5 points!');
+    final tie = Game(players: ['A', 'B'])..addRound([4, 4]);
+    expect(tie.resultHeadline, contains('Tie!'));
   });
 
   test('addRound rejects a score-count mismatch', () {

@@ -27,6 +27,7 @@ class _SetupScreenState extends State<SetupScreen> {
   final TextEditingController _scoreTarget = TextEditingController();
   bool _countDown = false;
   bool _lowestWins = false;
+  bool _whist = false;
 
   @override
   void initState() {
@@ -77,13 +78,37 @@ class _SetupScreenState extends State<SetupScreen> {
       );
       return;
     }
-    widget.onStart(Game(
-      players: players,
-      targetRounds: limit,
-      targetScore: scoreTarget,
-      countDown: limit != null && _countDown,
-      lowestWins: _lowestWins,
-    ));
+    if (_whist) {
+      widget.onStart(
+        Game(
+          players: players,
+          whist: true,
+          whistMaxHand: 8,
+          whistCycles: players.length,
+        ),
+      );
+      return;
+    }
+    widget.onStart(
+      Game(
+        players: players,
+        targetRounds: limit,
+        targetScore: scoreTarget,
+        countDown: limit != null && _countDown,
+        lowestWins: _lowestWins,
+      ),
+    );
+  }
+
+  void _setWhist(bool value) {
+    setState(() {
+      _whist = value;
+      if (value) {
+        while (_names.length < 3) {
+          _names.add(TextEditingController());
+        }
+      }
+    });
   }
 
   @override
@@ -101,11 +126,18 @@ class _SetupScreenState extends State<SetupScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          16 + MediaQuery.viewPaddingOf(context).bottom,
+        ),
         children: [
-          Text('Players',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Players',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           for (var i = 0; i < _names.length; i++)
             Padding(
@@ -122,7 +154,9 @@ class _SetupScreenState extends State<SetupScreen> {
                     ),
                   ),
                   IconButton(
-                    onPressed: _names.length > 2 ? () => _removePlayer(i) : null,
+                    onPressed: _names.length > 2
+                        ? () => _removePlayer(i)
+                        : null,
                     icon: const Icon(Icons.remove_circle_outline),
                     tooltip: 'Remove player',
                   ),
@@ -138,50 +172,66 @@ class _SetupScreenState extends State<SetupScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          TextField(
-            controller: _roundLimit,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              labelText: 'Number of rounds (optional)',
-              helperText: 'Leave empty to play until you end the game.',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 8),
           SwitchListTile(
-            value: _roundLimit.text.trim().isNotEmpty && _countDown,
-            onChanged: _roundLimit.text.trim().isNotEmpty
-                ? (value) => setState(() => _countDown = value)
-                : null,
-            title: const Text('Count rounds down'),
-            subtitle:
-                const Text('First round is the highest number (R8, R7, …).'),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _scoreTarget,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              labelText: 'Play until X points (optional)',
-              helperText:
-                  'The game ends once a player reaches this total — who '
-                  'wins is still decided by the scoring direction.',
-              helperMaxLines: 2,
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            value: _lowestWins,
-            onChanged: (value) => setState(() => _lowestWins = value),
-            title: const Text('Lowest points wins'),
+            value: _whist,
+            onChanged: _setWhist,
+            title: const Text('Whist'),
             subtitle: const Text(
-                'Crown the fewest points instead of the most (Hearts-style).'),
+              'Guess tricks, then tap who hit. Exact guess is '
+              'guess+10, else 0. Totals must not equal the hand. '
+              'Hands 8 down to 1, once per player.',
+            ),
             contentPadding: EdgeInsets.zero,
           ),
+          if (!_whist) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: _roundLimit,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: 'Number of rounds (optional)',
+                helperText: 'Leave empty to play until you end the game.',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              value: _roundLimit.text.trim().isNotEmpty && _countDown,
+              onChanged: _roundLimit.text.trim().isNotEmpty
+                  ? (value) => setState(() => _countDown = value)
+                  : null,
+              title: const Text('Count rounds down'),
+              subtitle: const Text(
+                'First round is the highest number (R8, R7, …).',
+              ),
+              contentPadding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _scoreTarget,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: 'Play until X points (optional)',
+                helperText:
+                    'The game ends once a player reaches this total — who '
+                    'wins is still decided by the scoring direction.',
+                helperMaxLines: 2,
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              value: _lowestWins,
+              onChanged: (value) => setState(() => _lowestWins = value),
+              title: const Text('Lowest points wins'),
+              subtitle: const Text(
+                'Crown the fewest points instead of the most (Hearts-style).',
+              ),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _start,

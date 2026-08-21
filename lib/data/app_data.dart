@@ -22,18 +22,28 @@ class AppData {
     current = null;
   }
 
+  /// Archives the current game and starts another with the same players and
+  /// rules. No-op if there is no current game.
+  void rematchCurrent() {
+    final game = current;
+    if (game == null) return;
+    final next = game.rematch();
+    archiveCurrent();
+    current = next;
+  }
+
   Map<String, dynamic> toJson() => {
-        'current': current?.toJson(),
-        'history': [for (final game in history) game.toJson()],
-      };
+    'current': current?.toJson(),
+    'history': [for (final game in history) game.toJson()],
+  };
 
   factory AppData.fromJson(Map<String, dynamic> json) => AppData(
-        current: json['current'] == null
-            ? null
-            : Game.fromJson(json['current'] as Map<String, dynamic>),
-        history: [
-          for (final game in (json['history'] as List?) ?? const [])
-            Game.fromJson(game as Map<String, dynamic>),
-        ],
-      );
+    current: json['current'] == null
+        ? null
+        : Game.fromJson(json['current'] as Map<String, dynamic>),
+    history: [
+      for (final game in (json['history'] as List?) ?? const [])
+        Game.fromJson(game as Map<String, dynamic>),
+    ],
+  );
 }

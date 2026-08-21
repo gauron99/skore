@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'data/app_data.dart';
 import 'data/game.dart';
@@ -8,6 +9,8 @@ import 'screens/scoreboard_screen.dart';
 import 'screens/setup_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const SkoreApp());
 }
 
@@ -74,8 +77,14 @@ class _HomeGateState extends State<HomeGate> {
     await _persist();
   }
 
-  /// "New game" from the scoreboard: archive what's there, back to setup.
-  Future<void> _archiveAndNew() async {
+  /// Archive the current game and start another with the same players/rules.
+  Future<void> _rematch() async {
+    setState(() => _data!.rematchCurrent());
+    await _persist();
+  }
+
+  /// Archive the current game and return to the setup form.
+  Future<void> _archiveAndSetup() async {
     setState(() => _data!.archiveCurrent());
     await _persist();
   }
@@ -88,18 +97,18 @@ class _HomeGateState extends State<HomeGate> {
   void _showHistory() {
     Navigator.of(context)
         .push(
-      MaterialPageRoute<void>(
-        builder: (_) => HistoryScreen(
-          data: _data!,
-          onPersist: _persist,
-          onDeleteAll: _deleteAll,
-        ),
-      ),
-    )
+          MaterialPageRoute<void>(
+            builder: (_) => HistoryScreen(
+              data: _data!,
+              onPersist: _persist,
+              onDeleteAll: _deleteAll,
+            ),
+          ),
+        )
         .then((_) {
-      // Deletions in the history screen may have changed what to show.
-      if (mounted) setState(() {});
-    });
+          // Deletions in the history screen may have changed what to show.
+          if (mounted) setState(() {});
+        });
   }
 
   @override
@@ -113,7 +122,8 @@ class _HomeGateState extends State<HomeGate> {
         ? SetupScreen(onStart: _startGame, onShowHistory: _showHistory)
         : ScoreboardScreen(
             game: game,
-            onNewGame: _archiveAndNew,
+            onRematch: _rematch,
+            onChangeSetup: _archiveAndSetup,
             onShowHistory: _showHistory,
             onPersist: _persist,
           );

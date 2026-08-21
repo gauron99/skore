@@ -13,15 +13,25 @@ A simple score counter for card games, built with Flutter. Targets Android
   scoring direction's call). Leave both empty and play until *End game*.
 - **Rounds in, totals out.** Enter every player's score once per round
   (negatives welcome); running totals are always on screen and the current
-  leader wears the crown. Highest points win by default — flip the *Lowest
-  points wins* switch at setup for games scored the other way (Hearts-style).
+  leader wears the crown. Four or more players get a live 1st / 2nd / 3rd
+  podium instead of a row of cards. Highest points win by default - flip the
+  *Lowest points wins* switch at setup for games scored the other way
+  (Hearts-style).
 - **Survives restarts.** Everything is saved on-device after every change
   (`shared_preferences`), so closing the app never loses a game.
-- **Past games.** Starting a new game archives the old one — the history
-  screen lists every game (date, totals, winner) with full standings a tap
-  away. Delete games one by one, or wipe everything with *Delete all data*.
-- **Undo.** The last round can always be taken back — totals are computed from
-  the round history, never stored.
+- **New game, same table.** After a game (and from *Menu* during one),
+  *New game* archives the last one and starts another with the same players
+  and rules. *Menu*, then *Set up a new game*, is the way back to the setup
+  form.
+- **Past games.** History lists every archived game; a tap opens the paper
+  score sheet. Delete games one by one, or wipe everything with *Delete all
+  data*.
+- **Undo.** *Menu*, then *Undo last round*, takes back the last scores.
+  Totals are computed from the round history, never stored.
+- **Whist.** Setup switch. Guess tricks, then tap who hit their guess
+  (nobody is allowed). Exact hit scores guess+10, a miss is 0. Guesses
+  must not add up to the number of tricks (dealer guesses last). Hands
+  8 down to 1, repeated once per player so dealing stays even.
 
 ## Dev
 
@@ -29,6 +39,7 @@ Flutter must be on your PATH. Then:
 
     make run    # run on Linux desktop
     make test   # unit + widget tests
+    make shots  # named Linux UI screenshots (needs DISPLAY)
     make apk    # debug APK (needs JDK 17 + Android SDK)
     make clean  # drop build outputs
 
@@ -56,5 +67,6 @@ Android will require uninstalling the old version first (which wipes data).
     lib/main.dart      app entry + saved-data restore
     lib/data/          Game/AppData models + shared_preferences persistence
     lib/screens/       setup, scoreboard, and past-games screens
-    lib/widgets/       round-entry dialog
+    lib/widgets/       round-entry dialog, paper sheet, podium
+    scripts/ui_shots.py  named Linux screenshot catalog (make shots)
     test/              model + persistence unit tests, widget tests

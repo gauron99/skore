@@ -32,6 +32,26 @@ void main() {
       expect(data.history.single.isOver, isTrue);
     });
 
+    test('rematchCurrent archives then starts the same rules', () {
+      final original = Game(
+        players: ['A', 'B'],
+        targetRounds: 3,
+        lowestWins: true,
+      )..addRound([1, 2]);
+      final data = AppData(current: original);
+      data.rematchCurrent();
+      expect(data.history, hasLength(1));
+      expect(data.history.single.rounds, [
+        [1, 2],
+      ]);
+      expect(data.current, isNotNull);
+      expect(data.current!.players, ['A', 'B']);
+      expect(data.current!.rounds, isEmpty);
+      expect(data.current!.targetRounds, 3);
+      expect(data.current!.lowestWins, isTrue);
+      expect(identical(data.current, original), isFalse);
+    });
+
     test('archiveCurrent without a game is a no-op', () {
       final data = AppData()..archiveCurrent();
       expect(data.history, isEmpty);
@@ -41,7 +61,9 @@ void main() {
     test('JSON round-trip preserves current and history', () {
       final data = AppData(
         current: Game(players: ['A', 'B'])..addRound([1, 2]),
-        history: [Game(players: ['C'], targetRounds: 1)..addRound([9])],
+        history: [
+          Game(players: ['C'], targetRounds: 1)..addRound([9]),
+        ],
       );
       final copy = AppData.fromJson(
         jsonDecode(jsonEncode(data.toJson())) as Map<String, dynamic>,
@@ -66,7 +88,8 @@ void main() {
 
     test('legacy single-game blobs are migrated and cleaned up', () async {
       SharedPreferences.setMockInitialValues({
-        'skore.game': '{"players":["Ana"],"rounds":[[7]],"targetRounds":null,'
+        'skore.game':
+            '{"players":["Ana"],"rounds":[[7]],"targetRounds":null,'
             '"endedManually":false}',
       });
       final loaded = await GameStore.load();
