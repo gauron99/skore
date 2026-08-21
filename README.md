@@ -80,6 +80,7 @@ release.
 
 ## Layout
 
+    AGENTS.md          how later agents should work in this repo
     lib/main.dart      app entry + saved-data restore
     lib/data/          Game/AppData models + shared_preferences persistence
     lib/screens/       setup, scoreboard, and past-games screens

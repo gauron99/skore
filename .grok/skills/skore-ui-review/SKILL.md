@@ -47,5 +47,8 @@ If `make shots` fails, fix `scripts/ui_shots.py`. Do not capture with
 - **Setup:** Start game is on screen, not hidden under the system inset.
 - **Window:** phone-shaped (default 420x800). Desktop layout is not the target.
 - **Whist:** setup switch. Bid dialog, tap who hit their guess, Finish round.
+- **Progress popups:** guess and round dialogs have See scores. That hides
+  the popup and keeps drafts; the bottom bar brings it back (Back to
+  guesses / Back to scores). Do not auto-open again after hide.
 
 A finding is not fixed until the new PNG of the same name shows it gone.
