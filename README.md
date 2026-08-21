@@ -37,30 +37,45 @@ A simple score counter for card games, built with Flutter. Targets Android
 
 Flutter must be on your PATH. Then:
 
-    make run    # run on Linux desktop
-    make test   # unit + widget tests
-    make shots  # named Linux UI screenshots (needs DISPLAY)
-    make apk    # debug APK (needs JDK 17 + Android SDK)
-    make clean  # drop build outputs
+    make run            # run on Linux desktop
+    make test           # unit + widget tests
+    make shots          # named Linux UI screenshots (needs DISPLAY)
+    make apk            # debug APK (needs JDK 17 + Android SDK)
+    make release-check  # signing key, GitHub secrets, tests, clean main
+    make release VERSION=X.Y.Z  # those checks, then tag a GitHub Release
+    make clean          # drop build outputs
 
 ## APK
 
 Grab the latest APK from the repo's
-[Releases](https://github.com/gauron99/skore/releases) page — open it in the
+[Releases](https://github.com/gauron99/skore/releases) page. Open it in the
 phone's browser, download, and install (sideloading must be allowed). Each
-release is built by CI from its `v*` tag; cut one with
-`gh release create vX.Y.Z --target main --generate-notes`.
+release is built by CI from its `v*` tag.
+
+Cut a release from a clean tree on `main`:
+
+    make release-check              # stop if signing or tests are not ready
+    make release VERSION=0.1.3      # push main if needed, create v0.1.3
+    # omit VERSION to bump the patch of the latest GitHub release
+
+That runs `gh release create vX.Y.Z --target main --generate-notes`. The
+Release APK workflow builds a signed APK and attaches it to the GitHub
+release. Watch the Actions tab; the phone download is ready when the APK
+appears on the release page.
 
 CI also analyzes, tests, and compile-checks a debug APK on every push and PR;
 a manual CI run (Actions → CI → Run workflow) uploads that debug APK as a
-3-day artifact. Local builds need JDK 17 + the Android SDK.
+3-day artifact. Local APKs need JDK 17 + the Android SDK.
 
 Every release auto-increments its Android versionCode (from the workflow run
-number), so newer releases always register as updates. For updates to install
-**in place** (keeping game data), releases must all carry the same signature:
-run `./scripts/setup-signing.sh` once to create a persistent keystore and set
-the four signing secrets. Until then releases are debug-keystore signed and
-Android will require uninstalling the old version first (which wipes data).
+number), so newer releases always register as updates. Updates only install
+in place (keeping game data) when every APK is signed with the same
+keystore. `make release-check` verifies `~/skore-release.jks` and the four
+GitHub Actions secrets. Run `./scripts/setup-signing.sh` once if those are
+missing, and back up the keystore plus password. A debug-signed build uses
+a new cert each CI run; Android then shows "Something went wrong" instead
+of updating, and the fix is uninstall (which wipes data) plus a signed
+release.
 
 ## Layout
 

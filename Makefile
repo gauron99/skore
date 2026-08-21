@@ -9,7 +9,7 @@ SHOTS_VENV := .tools/shots-venv
 
 .PHONY: help
 help: ## Show this help
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?##/ {printf "  \033[36m%-7s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: run
 run: ## Run on Linux desktop
@@ -23,6 +23,14 @@ test: ## Run unit + widget tests
 apk: ## Build debug APK (needs JDK 17 + Android SDK)
 	flutter build apk --debug
 	@echo "APK: $(APK_DEBUG)"
+
+.PHONY: release-check
+release-check: ## Signing, secrets, clean main, tests. No tag.
+	./scripts/release.sh check
+
+.PHONY: release
+release: ## Tag GitHub release (VERSION=X.Y.Z, default next patch)
+	./scripts/release.sh create $(VERSION)
 
 .PHONY: shots
 shots: $(SHOTS_BIN) $(SHOTS_VENV)/.installed ## Named UI screenshots (Linux, needs DISPLAY)

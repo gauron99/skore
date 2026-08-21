@@ -7,8 +7,8 @@
 # Run from the repo root:  ./scripts/setup-signing.sh
 #
 # AFTER running, BACK UP the keystore file + password in a password manager.
-# Lose them and you can never ship an in-place update again — you'd have to
-# uninstall (wiping the data) and start over with a new key.
+# Lose them and you can never ship an in-place update again. You would
+# have to uninstall (wiping the data) and start over with a new key.
 
 set -euo pipefail
 
@@ -19,19 +19,22 @@ ALIAS="skore"
 command -v keytool >/dev/null || { echo "keytool not found (install a JDK)"; exit 1; }
 command -v gh >/dev/null      || { echo "gh CLI not found / not logged in"; exit 1; }
 
-PASS=""
+PASS="${SKORE_KEYSTORE_PASSWORD:-}"
 if [ -f "$KEYSTORE" ]; then
   echo "Reusing existing keystore at $KEYSTORE"
 else
-  read -rsp "Choose a keystore password: " PASS; echo
-  read -rsp "Confirm password: " PASS2; echo
-  [ "$PASS" = "$PASS2" ] || { echo "Passwords do not match."; exit 1; }
+  if [ -z "$PASS" ]; then
+    read -rsp "Choose a keystore password: " PASS; echo
+    read -rsp "Confirm password: " PASS2; echo
+    [ "$PASS" = "$PASS2" ] || { echo "Passwords do not match."; exit 1; }
+  fi
   keytool -genkeypair -v \
     -keystore "$KEYSTORE" \
     -alias "$ALIAS" \
     -keyalg RSA -keysize 2048 -validity 10000 \
     -storepass "$PASS" -keypass "$PASS" \
-    -dname "CN=Skore, OU=cards, O=gauron99, C=CZ"
+    -dname "CN=Skore, OU=cards, O=gauron99, C=CZ" \
+    -noprompt
   echo "Created $KEYSTORE"
 fi
 

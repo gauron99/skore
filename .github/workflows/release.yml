@@ -7,10 +7,11 @@ name: Release APK
 #   1. push of a `v*` tag -> builds that tag and creates/updates its release
 #   2. workflow_dispatch  -> manual run from the Actions tab, given a tag
 #
-# The APK is a --release build signed with the runner's debug keystore (the
-# Flutter template default — no secrets required). That keystore differs per
-# run, so installing a new release over an older one may need an uninstall
-# first. Persistent signing (hana-style secrets) can be added later.
+# The APK is a --release build signed with the stable keystore from repo
+# secrets (scripts/setup-signing.sh). Android only installs an update if
+# the signing cert matches the app already on the phone; a missing key
+# used to fall back to the runner debug keystore, which is a new cert
+# every run and showed "Something went wrong" on the phone.
 on:
   push:
     tags:
@@ -60,10 +61,10 @@ jobs:
 
       # Restore the stable release keystore from secrets (set once via
       # scripts/setup-signing.sh) so every release carries the SAME
-      # signature — that's what lets the phone update in place and keep the
-      # game data. Without the secrets the build falls back to debug
-      # signing: still installable, but updating needs uninstall first.
-      - name: Set up release signing (when secrets exist)
+      # signature. Android only installs an update if this cert matches
+      # the app already on the phone. Missing secrets fail the job; do
+      # not fall back to the runner debug keystore (a new cert every run).
+      - name: Set up release signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -71,8 +72,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::warning::No signing secrets — falling back to debug signing. Run scripts/setup-signing.sh for in-place updates."
-            exit 0
+            echo "::error::No signing secrets. Run ./scripts/setup-signing.sh so releases keep the same cert and the phone can update in place."
+            exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/skore-release.jks
           {
