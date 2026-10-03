@@ -602,74 +602,76 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     final sumStyle = headingStyle?.copyWith(fontWeight: FontWeight.w700);
     final totals = game.totals;
 
-    // A plain Table with DataTable's metrics (heading 56, rows 48, margins
-    // 24, column gap 56): DataRow has no border of its own, and the line
-    // between stacks needs one.
-    Widget cell(int column, Widget child, {double height = 48}) => Container(
+    // A plain Table, heading 56 and rows 48 tall: DataRow has no border of
+    // its own, and the line between stacks needs one. Tight cells, so four
+    // players fit a phone; spare width goes to the player columns.
+    Widget cell(Widget child, {double height = 48}) => Container(
       height: height,
-      padding: EdgeInsetsDirectional.only(
-        start: column == 0 ? 24 : 28,
-        end: column == game.players.length ? 24 : 28,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: AlignmentDirectional.centerStart,
       child: child,
     );
 
-    return Align(
-      alignment: Alignment.topCenter,
-      child: SingleChildScrollView(
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          child: PinnedFirstRow(
-            table: Table(
-              defaultColumnWidth: const IntrinsicColumnWidth(),
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              border: TableBorder(verticalInside: columnLine),
-              children: [
-                TableRow(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: SingleChildScrollView(
+            // Exactly max(natural width, screen width). A table that fits
+            // grows to the screen edge; a wider one keeps its natural width
+            // and scrolls sideways.
+            child: IntrinsicWidth(
+              child: PinnedFirstRow(
+                table: Table(
+                  columnWidths: const {0: IntrinsicColumnWidth()},
+                  defaultColumnWidth: const _PlayerColumnWidth(),
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                  border: TableBorder(verticalInside: columnLine),
                   children: [
-                    cell(0, Text('#', style: headingStyle), height: 56),
-                    for (var i = 0; i < game.players.length; i++)
-                      cell(
-                        i + 1,
-                        Center(
-                          child: Text(game.players[i], style: headingStyle),
-                        ),
-                        height: 56,
-                      ),
-                  ],
-                ),
-                for (var r = 0; r < game.rounds.length; r++)
-                  TableRow(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: game.startsWhistStack(r) ? stackLine : rowLine,
-                      ),
+                    TableRow(
+                      children: [
+                        cell(Text('#', style: headingStyle), height: 56),
+                        for (var i = 0; i < game.players.length; i++)
+                          cell(
+                            Center(
+                              child: Text(game.players[i], style: headingStyle),
+                            ),
+                            height: 56,
+                          ),
+                      ],
                     ),
-                    children: [
-                      cell(0, Text('R${game.roundNumber(r)}')),
-                      for (var i = 0; i < game.players.length; i++)
-                        cell(
-                          i + 1,
-                          Center(child: Text('${game.rounds[r][i]}')),
+                    for (var r = 0; r < game.rounds.length; r++)
+                      TableRow(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: game.startsWhistStack(r) ? stackLine : rowLine,
+                          ),
                         ),
-                    ],
-                  ),
-                TableRow(
-                  decoration: BoxDecoration(
-                    border: Border(top: rowLine),
-                    color: theme.colorScheme.secondaryContainer,
-                  ),
-                  children: [
-                    cell(0, Text('SUM', style: sumStyle)),
-                    for (var i = 0; i < game.players.length; i++)
-                      cell(
-                        i + 1,
-                        Center(child: Text('${totals[i]}', style: sumStyle)),
+                        children: [
+                          cell(Text('R${game.roundNumber(r)}')),
+                          for (var i = 0; i < game.players.length; i++)
+                            cell(Center(child: Text('${game.rounds[r][i]}'))),
+                        ],
                       ),
+                    TableRow(
+                      decoration: BoxDecoration(
+                        border: Border(top: rowLine),
+                        color: theme.colorScheme.secondaryContainer,
+                      ),
+                      children: [
+                        cell(Text('SUM', style: sumStyle)),
+                        for (var i = 0; i < game.players.length; i++)
+                          cell(
+                            Center(
+                              child: Text('${totals[i]}', style: sumStyle),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -704,4 +706,22 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       ],
     );
   }
+}
+
+/// A player column of the live round table: as wide as its widest cell plus
+/// an equal share of any spare screen width. Never narrower than that widest
+/// cell, so a name does not wrap while the table still fits.
+class _PlayerColumnWidth extends TableColumnWidth {
+  const _PlayerColumnWidth();
+
+  @override
+  double minIntrinsicWidth(Iterable<RenderBox> cells, double containerWidth) =>
+      maxIntrinsicWidth(cells, containerWidth);
+
+  @override
+  double maxIntrinsicWidth(Iterable<RenderBox> cells, double containerWidth) =>
+      const IntrinsicColumnWidth().maxIntrinsicWidth(cells, containerWidth);
+
+  @override
+  double flex(Iterable<RenderBox> cells) => 1;
 }
