@@ -14,6 +14,7 @@ class Game {
     this.whist = false,
     this.whistMaxHand = 8,
     int? whistCycles,
+    this.whistFirstDealer = 0,
     this.whistBids,
     List<bool>? whistHits,
     DateTime? startedAt,
@@ -26,6 +27,11 @@ class Game {
       hits != null && hits.length == n
       ? List<bool>.from(hits)
       : List<bool>.filled(n, false);
+
+  /// Saves from before [whistFirstDealer] existed, or with a seat that no
+  /// longer fits, fall back to the first seat.
+  static int _seatOrZero(Object? seat, int n) =>
+      seat is int && seat >= 0 && seat < n ? seat : 0;
 
   /// Player names in seating order. Fixed for the lifetime of a game.
   final List<String> players;
@@ -59,6 +65,10 @@ class Game {
 
   /// How many 8-down-to-1 stacks to play. Default is one per player.
   final int whistCycles;
+
+  /// Seat that deals the first stack. The deal then moves to the next seat
+  /// each stack, wrapping to the top.
+  final int whistFirstDealer;
 
   /// Locked guesses for the current hand, or null if still bidding.
   List<int>? whistBids;
@@ -95,7 +105,8 @@ class Game {
   int get whistStackNumber => (rounds.length ~/ whistMaxHand) + 1;
 
   /// Player who deals this stack (and is last to bid).
-  int get whistDealer => (whistStackNumber - 1) % players.length;
+  int get whistDealer =>
+      (whistFirstDealer + whistStackNumber - 1) % players.length;
 
   bool get whistAwaitingBids => whist && !isOver && whistBids == null;
 
@@ -192,6 +203,7 @@ class Game {
     whist: whist,
     whistMaxHand: whistMaxHand,
     whistCycles: whistCycles,
+    whistFirstDealer: whistFirstDealer,
   );
 
   bool whistHit(int player) => whistHits[player];
@@ -304,6 +316,7 @@ class Game {
     'whist': whist,
     'whistMaxHand': whistMaxHand,
     'whistCycles': whistCycles,
+    'whistFirstDealer': whistFirstDealer,
     'whistBids': whistBids,
     'whistHits': whistHits,
     'startedAt': startedAt.toIso8601String(),
@@ -322,6 +335,10 @@ class Game {
     whist: json['whist'] as bool? ?? false,
     whistMaxHand: json['whistMaxHand'] as int? ?? 8,
     whistCycles: json['whistCycles'] as int?,
+    whistFirstDealer: _seatOrZero(
+      json['whistFirstDealer'],
+      (json['players'] as List).length,
+    ),
     whistBids: (json['whistBids'] as List?)?.cast<int>(),
     whistHits: (json['whistHits'] as List?)?.map((hit) => hit == true).toList(),
     startedAt: json['startedAt'] == null

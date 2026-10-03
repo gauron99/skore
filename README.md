@@ -31,7 +31,10 @@ A simple score counter for card games, built with Flutter. Targets Android
 - **Whist.** Setup switch. Guess tricks, then tap who hit their guess
   (nobody is allowed). Exact hit scores guess+10, a miss is 0. Guesses
   must not add up to the number of tricks (dealer guesses last). Hands
-  8 down to 1, repeated once per player so dealing stays even.
+  8 down to 1, repeated once per player so dealing stays even. Drag the
+  players into seating order at setup: the last one deals first, then the
+  deal moves to the next player each stack. A *D* marks the dealer
+  during play.
 
 ## Dev
 

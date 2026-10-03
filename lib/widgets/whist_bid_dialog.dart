@@ -10,13 +10,15 @@ class WhistBidDialog extends StatefulWidget {
     super.key,
     required this.players,
     required this.handCards,
-    required this.dealerIndex,
+    required this.bidOrder,
     this.initialTexts,
   });
 
   final List<String> players;
   final int handCards;
-  final int dealerIndex;
+
+  /// Seating indices in bid order, dealer last ([Game.whistBidOrder]).
+  final List<int> bidOrder;
 
   /// Field text in bid order, restored after hiding the popup to see scores.
   final List<String>? initialTexts;
@@ -43,10 +45,8 @@ class _MaxHandFormatter extends TextInputFormatter {
 }
 
 class _WhistBidDialogState extends State<WhistBidDialog> {
-  late final List<int> _order = [
-    for (var i = 1; i <= widget.players.length; i++)
-      (widget.dealerIndex + i) % widget.players.length,
-  ];
+  List<int> get _order => widget.bidOrder;
+
   late final List<TextEditingController> _bids = [
     for (var i = 0; i < _order.length; i++)
       TextEditingController(text: _initialText(i)),
@@ -144,7 +144,7 @@ class _WhistBidDialogState extends State<WhistBidDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final dealerName = widget.players[widget.dealerIndex];
+    final dealerName = widget.players[_order.last];
     final forbidden = _forbiddenDealerBid;
     final max = widget.handCards;
     final errorColor = Theme.of(context).colorScheme.error;

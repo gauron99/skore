@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skore/data/game.dart';
 import 'package:skore/main.dart';
 import 'package:skore/screens/scoreboard_screen.dart';
+import 'package:skore/screens/setup_screen.dart';
 import 'package:skore/widgets/whist_bid_dialog.dart';
 
 Future<void> pumpApp(WidgetTester tester) async {
@@ -14,7 +15,10 @@ Future<void> pumpApp(WidgetTester tester) async {
 
 /// Scrolls the setup list until [finder] is built and visible. (ListView
 /// builds lazily, so off-screen children don't exist for ensureVisible.)
+/// Settles first: a caret reveal still queued from enterText would scroll
+/// the list back to that field after we jump.
 Future<void> scrollTo(WidgetTester tester, Finder finder) async {
+  await tester.pumpAndSettle();
   await tester.scrollUntilVisible(
     finder,
     80,
@@ -49,6 +53,125 @@ void main() {
     await tester.pump();
     await scrollTo(tester, find.text('Start game'));
     expect(startButton().onPressed, isNotNull);
+  });
+
+  testWidgets('duplicate names block Start and flag the repeat', (
+    tester,
+  ) async {
+    FilledButton startButton() => tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('Start game'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+
+    await pumpApp(tester);
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), ' ana ');
+    await tester.pump();
+    expect(find.text('Name already used'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(fields.at(1)).decoration!.errorText,
+      'Name already used',
+    );
+    expect(startButton().onPressed, isNull);
+
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.pump();
+    expect(find.text('Name already used'), findsNothing);
+    expect(startButton().onPressed, isNotNull);
+  });
+
+  testWidgets('whist setup keeps at least three players', (tester) async {
+    List<bool> removable() => [
+      for (final button in tester.widgetList<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.remove_circle_outline),
+      ))
+        button.onPressed != null,
+    ];
+
+    await pumpApp(tester);
+    await tester.tap(find.text('Whist'));
+    await tester.pumpAndSettle();
+    expect(removable(), [false, false, false]);
+
+    await tester.tap(find.text('Add player'));
+    await tester.pumpAndSettle();
+    expect(removable(), [true, true, true, true]);
+
+    await tester.tap(find.byTooltip('Remove player').last);
+    await tester.pumpAndSettle();
+    expect(removable(), [false, false, false]);
+
+    await tester.tap(find.text('Whist'));
+    await tester.pumpAndSettle();
+    expect(removable(), [true, true, true]);
+  });
+
+  testWidgets('whist setup: seat labels follow a reorder', (tester) async {
+    String? labelOf(String name) => tester
+        .widget<TextField>(find.widgetWithText(TextField, name))
+        .decoration!
+        .labelText;
+
+    await pumpApp(tester);
+    await tester.tap(find.text('Whist'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Seating order.'), findsOneWidget);
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.enterText(fields.at(2), 'Cara');
+    await tester.pumpAndSettle();
+    expect(labelOf('Ana'), 'Bids 1st');
+    expect(labelOf('Ben'), 'Bids 2nd');
+    expect(labelOf('Cara'), 'Deals · bids last');
+
+    // Drag Cara's handle above Ana.
+    await tester.timedDrag(
+      find.byIcon(Icons.drag_handle).at(2),
+      const Offset(0, -200),
+      const Duration(milliseconds: 500),
+    );
+    await tester.pumpAndSettle();
+
+    expect(labelOf('Cara'), 'Bids 1st');
+    expect(labelOf('Ana'), 'Bids 2nd');
+    expect(labelOf('Ben'), 'Deals · bids last');
+  });
+
+  testWidgets('whist Start makes the last seat the first dealer', (
+    tester,
+  ) async {
+    Game? started;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SetupScreen(
+          onStart: (game) => started = game,
+          onShowHistory: () {},
+        ),
+      ),
+    );
+    await tester.tap(find.text('Whist'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add player'));
+    await tester.pumpAndSettle();
+
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.enterText(fields.at(2), 'Cara');
+    await tester.enterText(fields.at(3), 'Dana');
+    await scrollTo(tester, find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    expect(started!.players, ['Ana', 'Ben', 'Cara', 'Dana']);
+    expect(started!.whistFirstDealer, 3);
+    expect(started!.whistDealer, 3);
+    expect(started!.whistBidOrder, [0, 1, 2, 3]);
   });
 
   testWidgets('setup → scoreboard → first round updates totals and saves', (
@@ -319,7 +442,7 @@ void main() {
           body: WhistBidDialog(
             players: ['Ana', 'Ben', 'Cara'],
             handCards: 8,
-            dealerIndex: 0,
+            bidOrder: [1, 2, 0],
           ),
         ),
       ),
@@ -439,6 +562,72 @@ void main() {
           .text,
       '1',
     );
+  });
+
+  testWidgets('whist: D marks the dealer during play, not on final standings', (
+    tester,
+  ) async {
+    Widget board(Game game) => MaterialApp(
+      home: ScoreboardScreen(
+        game: game,
+        onRematch: () {},
+        onChangeSetup: () {},
+        onShowHistory: () {},
+        onPersist: () async {},
+      ),
+    );
+
+    final game = Game(
+      players: ['Ana', 'Ben', 'Cara'],
+      whist: true,
+      whistMaxHand: 2,
+      whistCycles: 1,
+      whistFirstDealer: 1,
+    );
+    await tester.pumpWidget(board(game));
+    await tester.pumpAndSettle();
+
+    // Totals cards sit behind the guess popup.
+    expect(find.text('D'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.ancestor(of: find.text('Ben'), matching: find.byType(Card)),
+        matching: find.text('D'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.widgetWithText(TextField, 'Cara'), '1');
+    await tester.tap(find.text('Lock guesses'));
+    await tester.pumpAndSettle();
+    expect(find.text('Finish round'), findsOneWidget);
+    expect(find.text('D'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find
+            .ancestor(of: find.text('D'), matching: find.byType(InkWell))
+            .first,
+        matching: find.text('Ben'),
+      ),
+      findsOneWidget,
+    );
+
+    final over =
+        Game(
+            players: ['Ana', 'Ben', 'Cara'],
+            whist: true,
+            whistMaxHand: 1,
+            whistCycles: 1,
+            whistFirstDealer: 1,
+          )
+          ..lockBids([0, 0, 0])
+          ..finishWhistHand();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(board(over));
+    await tester.pumpAndSettle();
+    expect(over.isOver, isTrue);
+    expect(find.text('New game'), findsOneWidget);
+    expect(find.text('D'), findsNothing);
   });
 
   testWidgets('round popup: See scores hides it; bottom bar restores drafts', (

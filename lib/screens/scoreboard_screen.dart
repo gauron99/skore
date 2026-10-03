@@ -81,7 +81,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       builder: (context) => WhistBidDialog(
         players: game.players,
         handCards: game.whistHandCards,
-        dealerIndex: game.whistDealer,
+        bidOrder: game.whistBidOrder,
         initialTexts: _bidDrafts,
       ),
     );
@@ -487,6 +487,10 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                     game.players[index],
                     style: theme.textTheme.labelLarge?.copyWith(color: onChip),
                   ),
+                  if (_isDealer(index)) ...[
+                    const SizedBox(width: 6),
+                    _dealerBadge(context, onChip, hit ? made : waiting),
+                  ],
                 ],
               ),
               const SizedBox(height: 4),
@@ -504,6 +508,30 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isDealer(int index) =>
+      game.whist && !game.isOver && index == game.whistDealer;
+
+  /// Small "D" chip next to the dealer's name during live Whist play.
+  Widget _dealerBadge(BuildContext context, Color fill, Color text) {
+    return Tooltip(
+      message: 'Dealer',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'D',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: text,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -534,6 +562,14 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                   game.players[index],
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
+                if (_isDealer(index)) ...[
+                  const SizedBox(width: 6),
+                  _dealerBadge(
+                    context,
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 4),

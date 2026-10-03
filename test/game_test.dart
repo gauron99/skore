@@ -172,6 +172,25 @@ void main() {
       expect(game.whistHandCards, 2);
     });
 
+    test('first dealer starts the deal; it moves one seat per stack', () {
+      final game = Game(
+        players: ['Ana', 'Ben', 'Cara'],
+        whist: true,
+        whistMaxHand: 2,
+        whistCycles: 3,
+        whistFirstDealer: 2,
+      );
+      expect(game.whistBidOrder, [0, 1, 2]);
+      final dealers = <int>[];
+      while (!game.isOver) {
+        dealers.add(game.whistDealer);
+        expect(game.whistBidOrder.last, game.whistDealer);
+        game.lockBids([0, 0, 0]);
+        game.finishWhistHand();
+      }
+      expect(dealers, [2, 2, 0, 0, 1, 1]);
+    });
+
     test('marked players score bid plus 10; unmarked score 0', () {
       final game = fresh();
       game.lockBids([2, 1, 0]);
@@ -238,6 +257,40 @@ void main() {
       expect(copy.whistHandCards, 2);
     });
 
+    test('JSON round-trip keeps the first dealer', () {
+      final game = Game(
+        players: ['Ana', 'Ben', 'Cara'],
+        whist: true,
+        whistFirstDealer: 2,
+      );
+      final copy = Game.fromJson(
+        jsonDecode(jsonEncode(game.toJson())) as Map<String, dynamic>,
+      );
+      expect(copy.whistFirstDealer, 2);
+      expect(copy.whistDealer, 2);
+    });
+
+    test('saves without a valid first dealer keep the old deal order', () {
+      Map<String, dynamic> save(Object? firstDealer) => {
+        'players': ['A', 'B', 'C'],
+        'rounds': [
+          [0, 0, 0],
+          [0, 0, 0],
+        ],
+        'endedManually': false,
+        'whist': true,
+        'whistMaxHand': 2,
+        'whistCycles': 3,
+        'whistFirstDealer': ?firstDealer,
+      };
+      for (final firstDealer in [null, 3, -1, 'x']) {
+        final game = Game.fromJson(save(firstDealer));
+        expect(game.whistFirstDealer, 0, reason: '$firstDealer');
+        // Second stack: seat 1 deals, as before the field existed.
+        expect(game.whistDealer, 1, reason: '$firstDealer');
+      }
+    });
+
     test('toJson always writes a hits list, even if the save omitted it', () {
       final game = Game.fromJson({
         'players': ['A', 'B', 'C'],
@@ -290,10 +343,12 @@ void main() {
       whist: true,
       whistMaxHand: 8,
       whistCycles: 3,
+      whistFirstDealer: 2,
     ).rematch();
     expect(next.whist, isTrue);
     expect(next.whistMaxHand, 8);
     expect(next.whistCycles, 3);
+    expect(next.whistFirstDealer, 2);
     expect(next.rounds, isEmpty);
   });
 
