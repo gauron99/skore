@@ -188,7 +188,26 @@ class Game {
     return order;
   }
 
-  /// One-line result used on the final sheet and in history.
+  /// Finishing place per player, shared on ties: 1, 1, 3. Best is the
+  /// highest total, or the lowest when [lowestWins] is set.
+  List<int> get places {
+    final sums = totals;
+    bool beats(int other, int mine) => lowestWins ? other < mine : other > mine;
+    return [
+      for (final mine in sums)
+        1 + sums.where((other) => beats(other, mine)).length,
+    ];
+  }
+
+  /// Points per player between their total and the winning one, in either
+  /// scoring direction. Zero for the winners.
+  List<int> get behindWinner {
+    final sums = totals;
+    final best = sums[standings.first];
+    return [for (final total in sums) (total - best).abs()];
+  }
+
+  /// One-line result, read out with the final standings.
   String get resultHeadline {
     final winnerIndexes = leaders;
     if (winnerIndexes.isEmpty) {

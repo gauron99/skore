@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/game.dart';
+import '../widgets/final_standings.dart';
 import '../widgets/paper_score_sheet.dart';
 
 /// Full-screen paper sheet for a finished (or archived) game.
@@ -18,7 +19,7 @@ class GameSheetScreen extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.only(bottom: 16 + bottom),
         children: [
-          WinnerBanner(game: game),
+          FinalStandings(game: game),
           Center(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,

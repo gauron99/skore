@@ -101,34 +101,3 @@ class PaperScoreSheet extends StatelessWidget {
     );
   }
 }
-
-/// Teal result strip used above a finished sheet.
-class WinnerBanner extends StatelessWidget {
-  const WinnerBanner({super.key, required this.game});
-
-  final Game game;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(Icons.emoji_events),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                game.resultHeadline,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

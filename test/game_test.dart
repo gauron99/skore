@@ -390,6 +390,34 @@ void main() {
     expect(game.standings, [1, 0, 2]);
   });
 
+  group('final places', () {
+    test('a tie for first shares 1st; the next place is 3rd', () {
+      final game = Game(players: ['A', 'B', 'C'])..addRound([10, 10, 5]);
+      expect(game.places, [1, 1, 3]);
+      expect(game.behindWinner, [0, 0, 5]);
+    });
+
+    test('a tie in the middle shares 2nd; the next place is 4th', () {
+      final game = Game(players: ['A', 'B', 'C', 'D'])..addRound([9, 5, 5, 1]);
+      expect(game.places, [1, 2, 2, 4]);
+      expect(game.behindWinner, [0, 4, 4, 8]);
+    });
+
+    test('lowest wins: fewest points is 1st, gaps still count up', () {
+      final game = Game(players: ['A', 'B', 'C'], lowestWins: true)
+        ..addRound([3, 9, 1]);
+      expect(game.standings, [2, 0, 1]);
+      expect(game.places, [2, 3, 1]);
+      expect(game.behindWinner, [2, 8, 0]);
+    });
+
+    test('negative totals keep the same rules', () {
+      final game = Game(players: ['A', 'B'])..addRound([-4, 3]);
+      expect(game.places, [2, 1]);
+      expect(game.behindWinner, [7, 0]);
+    });
+  });
+
   group('lowest points wins', () {
     test('leader is the lowest total', () {
       final game = Game(players: ['A', 'B'], lowestWins: true)

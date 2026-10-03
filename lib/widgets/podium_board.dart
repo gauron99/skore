@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/game.dart';
+import 'medals.dart';
 
 /// Live 1st / 2nd / 3rd as a small three-step stand for tables of 4+ players.
 ///
@@ -10,10 +11,6 @@ class PodiumBoard extends StatelessWidget {
   const PodiumBoard({super.key, required this.game});
 
   final Game game;
-
-  static const _gold = Color(0xFFFFE082);
-  static const _silver = Color(0xFFDDE1E6);
-  static const _bronze = Color(0xFFE8C9A8);
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +33,7 @@ class PodiumBoard extends StatelessWidget {
                   place: '2nd',
                   name: game.players[second],
                   total: totals[second],
-                  color: _silver,
+                  color: Medal.silver,
                   standHeight: 64,
                 ),
               ),
@@ -47,7 +44,7 @@ class PodiumBoard extends StatelessWidget {
                   place: '1st',
                   name: game.players[first],
                   total: totals[first],
-                  color: _gold,
+                  color: Medal.gold,
                   standHeight: 96,
                   crowned: true,
                 ),
@@ -59,7 +56,7 @@ class PodiumBoard extends StatelessWidget {
                   place: '3rd',
                   name: game.players[third],
                   total: totals[third],
-                  color: _bronze,
+                  color: Medal.bronze,
                   standHeight: 48,
                 ),
               ),

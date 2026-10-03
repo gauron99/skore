@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/game.dart';
+import '../widgets/final_standings.dart';
 import '../widgets/paper_score_sheet.dart';
 import '../widgets/pinned_first_row.dart';
 import '../widgets/podium_board.dart';
@@ -691,7 +692,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        WinnerBanner(game: game),
+        FinalStandings(game: game),
         Expanded(
           child: SingleChildScrollView(
             child: Center(

@@ -13,6 +13,8 @@ import 'package:skore/main.dart';
 import 'package:skore/screens/game_sheet_screen.dart';
 import 'package:skore/screens/scoreboard_screen.dart';
 import 'package:skore/screens/setup_screen.dart';
+import 'package:skore/widgets/final_standings.dart';
+import 'package:skore/widgets/medals.dart';
 import 'package:skore/widgets/paper_score_sheet.dart';
 import 'package:skore/widgets/whist_bid_dialog.dart';
 
@@ -326,7 +328,7 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ana wins with 5 points!'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ana wins with 5 points!'), findsOneWidget);
     expect(find.text('New game'), findsOneWidget);
     expect(find.text('Menu'), findsOneWidget);
     expect(find.text('Add round'), findsNothing);
@@ -382,7 +384,7 @@ void main() {
 
     await tester.tap(find.text('Ana 5 · Ben 3'));
     await tester.pumpAndSettle();
-    expect(find.text('Ana wins with 5 points!'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ana wins with 5 points!'), findsOneWidget);
     expect(find.text('R1'), findsOneWidget);
     expect(find.text('Σ'), findsOneWidget);
     await tester.pageBack();
@@ -424,7 +426,7 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ben wins with 3 points!'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ben wins with 3 points!'), findsOneWidget);
   });
 
   testWidgets('rounds are listed in play order, first round on top', (
@@ -515,7 +517,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Ana hit 11 >= 10: game over, standings shown.
-    expect(find.text('Ana wins with 11 points!'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ana wins with 11 points!'), findsOneWidget);
     expect(find.text('Add round'), findsNothing);
   });
 
@@ -804,7 +806,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Yes'));
     await tester.pumpAndSettle();
-    expect(find.text('Ben wins with 6 points!'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ben wins with 6 points!'), findsOneWidget);
 
     await tester.tap(find.text('Menu'));
     await tester.pumpAndSettle();
@@ -1027,7 +1029,7 @@ void main() {
   testWidgets('paper sheet keeps the names row on screen', (tester) async {
     final game = longGame(['Ana', 'Ben', 'Cara'], 30, targetRounds: 30);
 
-    // Final standings: the sheet scrolls under the winner banner.
+    // Final standings: the sheet scrolls under the standings block.
     await pumpPhone(
       tester,
       ScoreboardScreen(
@@ -1048,7 +1050,7 @@ void main() {
     expect(namesRow(tester).bottom, lessThan(names.top));
     expect(await pixelsOf(tester, names), samePixels(atRest));
 
-    // Past games: banner and sheet scroll together, then the names row
+    // Past games: block and sheet scroll together, then the names row
     // stays at the top of the list. Compare it there with the real row
     // scrolled to exactly that spot, so both sit on the same pixels.
     await tester.pumpWidget(const SizedBox.shrink());
@@ -1073,6 +1075,174 @@ void main() {
     await tester.pump();
     expect(namesRow(tester).bottom, lessThan(listTop));
     expect(await pixelsOf(tester, names), samePixels(atRest));
+  });
+
+  group('final standings block', () {
+    final block = find.byType(FinalStandings);
+    Finder inBlock(Finder finder) =>
+        find.descendant(of: block, matching: finder);
+    List<Color?> badgeColors(WidgetTester tester) => [
+      for (final badge in tester.widgetList<CircleAvatar>(
+        inBlock(find.byType(CircleAvatar)),
+      ))
+        badge.backgroundColor,
+    ];
+    double rowTop(WidgetTester tester, String name) =>
+        tester.getTopLeft(inBlock(find.text(name))).dy;
+    Game finished(List<String> players, List<int> totals, {bool low = false}) =>
+        Game(players: players, targetRounds: 1, lowestWins: low)
+          ..addRound(totals);
+    Widget board(Game game) => ScoreboardScreen(
+      game: game,
+      onRematch: () {},
+      onChangeSetup: () {},
+      onShowHistory: () {},
+      onPersist: () async {},
+    );
+
+    testWidgets('places, medals and gaps with a tie in the middle', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        scoreboardApp(
+          finished(['Ana', 'Ben', 'Cara', 'Dana', 'Eva'], [25, 30, 10, 25, 5]),
+        ),
+      );
+      expect(block, findsOneWidget);
+
+      // Best first: Ben 30, then Ana and Dana tied at 25, Cara, Eva.
+      final tops = [
+        for (final name in ['Ben', 'Ana', 'Dana', 'Cara', 'Eva'])
+          rowTop(tester, name),
+      ];
+      expect(tops, orderedEquals([...tops]..sort()));
+      expect(
+        [
+          for (final badge in tester.widgetList<Text>(
+            find.descendant(
+              of: inBlock(find.byType(CircleAvatar)),
+              matching: find.byType(Text),
+            ),
+          ))
+            badge.data,
+        ],
+        ['1', '2', '2', '4', '5'],
+      );
+
+      // Medals on places 1 to 3 only.
+      final colors = badgeColors(tester);
+      expect(colors.take(3), [Medal.gold, Medal.silver, Medal.silver]);
+      for (final color in colors.skip(3)) {
+        expect(color, isNot(anyOf(Medal.gold, Medal.silver, Medal.bronze)));
+      }
+
+      // Gaps on everyone but the winner; one trophy.
+      expect(inBlock(find.text('5 behind')), findsNWidgets(2));
+      expect(inBlock(find.text('20 behind')), findsOneWidget);
+      expect(inBlock(find.text('25 behind')), findsOneWidget);
+      expect(inBlock(find.textContaining('behind')), findsNWidgets(4));
+      expect(inBlock(find.byIcon(Icons.emoji_events)), findsOneWidget);
+      expect(find.bySemanticsLabel('Ben wins with 30 points!'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a tie for first: every tied player is a winner (lowest wins)',
+      (tester) async {
+        await tester.pumpWidget(
+          scoreboardApp(finished(['Ana', 'Ben', 'Cara'], [9, 3, 3], low: true)),
+        );
+        // Fewest first: Ben and Cara share 1st, Ana is 3rd.
+        expect(rowTop(tester, 'Ben'), lessThan(rowTop(tester, 'Ana')));
+        expect(rowTop(tester, 'Cara'), lessThan(rowTop(tester, 'Ana')));
+        expect(badgeColors(tester), [Medal.gold, Medal.gold, Medal.bronze]);
+        expect(inBlock(find.byIcon(Icons.emoji_events)), findsNWidgets(2));
+        expect(inBlock(find.text('6 behind')), findsOneWidget);
+        expect(inBlock(find.textContaining('behind')), findsOneWidget);
+      },
+    );
+
+    testWidgets('on final standings and Past games, Whist and normal games', (
+      tester,
+    ) async {
+      final whist = Game(
+        players: ['Ana', 'Ben', 'Cara'],
+        whist: true,
+        whistMaxHand: 1,
+        whistCycles: 1,
+      )..lockBids([0, 0, 0]);
+      whist
+        ..toggleWhistHit(1)
+        ..finishWhistHand();
+      final normal = finished(['Ana', 'Ben'], [7, 4]);
+
+      for (final game in [whist, normal]) {
+        final winner = game.players[game.standings.first];
+        for (final screen in [
+          board(game),
+          GameSheetScreen(game: game, title: 'Past game'),
+        ]) {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pumpWidget(MaterialApp(home: screen));
+          await tester.pumpAndSettle();
+          expect(block, findsOneWidget);
+          expect(badgeColors(tester).first, Medal.gold);
+          expect(
+            rowTop(tester, winner),
+            lessThan(rowTop(tester, game.players[game.standings.last])),
+          );
+        }
+      }
+    });
+
+    testWidgets('no rounds played: the old one-line text', (tester) async {
+      await tester.pumpWidget(
+        scoreboardApp(Game(players: ['Ana', 'Ben'])..endedManually = true),
+      );
+      expect(
+        inBlock(find.text('Game over. No rounds were played.')),
+        findsOneWidget,
+      );
+      expect(inBlock(find.byType(CircleAvatar)), findsNothing);
+    });
+
+    testWidgets('six players: block and names row fit the first screen', (
+      tester,
+    ) async {
+      final game = Game(
+        players: ['Ana', 'Ben', 'Cara', 'Dana', 'Eva', 'Fred'],
+        targetRounds: 30,
+      );
+      for (var r = 0; r < 30; r++) {
+        game.addRound([for (var i = 0; i < 6; i++) (r * 7 + i * 5) % 13]);
+      }
+      for (final size in [const Size(360, 640), const Size(420, 800)]) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(MaterialApp(home: board(game)));
+        await tester.pumpAndSettle();
+        expect(
+          namesRow(tester).bottom,
+          lessThan(tester.getTopLeft(find.text('Menu')).dy),
+          reason: 'final standings at $size',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GameSheetScreen(game: game, title: 'Past game'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          namesRow(tester).bottom,
+          lessThan(size.height),
+          reason: 'Past games at $size',
+        );
+      }
+    });
   });
 
   testWidgets('round popup: See scores hides it; bottom bar restores drafts', (
