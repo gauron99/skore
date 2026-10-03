@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/game.dart';
 import '../widgets/paper_score_sheet.dart';
+import '../widgets/pinned_first_row.dart';
 import '../widgets/podium_board.dart';
 import '../widgets/round_entry_dialog.dart';
 import '../widgets/whist_bid_dialog.dart';
@@ -619,50 +620,57 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SingleChildScrollView(
-          child: Table(
-            defaultColumnWidth: const IntrinsicColumnWidth(),
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            border: TableBorder(verticalInside: columnLine),
-            children: [
-              TableRow(
-                children: [
-                  cell(0, Text('#', style: headingStyle), height: 56),
-                  for (var i = 0; i < game.players.length; i++)
-                    cell(
-                      i + 1,
-                      Center(child: Text(game.players[i], style: headingStyle)),
-                      height: 56,
-                    ),
-                ],
-              ),
-              for (var r = 0; r < game.rounds.length; r++)
+          child: PinnedFirstRow(
+            table: Table(
+              defaultColumnWidth: const IntrinsicColumnWidth(),
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              border: TableBorder(verticalInside: columnLine),
+              children: [
                 TableRow(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: game.startsWhistStack(r) ? stackLine : rowLine,
-                    ),
-                  ),
                   children: [
-                    cell(0, Text('R${game.roundNumber(r)}')),
+                    cell(0, Text('#', style: headingStyle), height: 56),
                     for (var i = 0; i < game.players.length; i++)
-                      cell(i + 1, Center(child: Text('${game.rounds[r][i]}'))),
+                      cell(
+                        i + 1,
+                        Center(
+                          child: Text(game.players[i], style: headingStyle),
+                        ),
+                        height: 56,
+                      ),
                   ],
                 ),
-              TableRow(
-                decoration: BoxDecoration(
-                  border: Border(top: rowLine),
-                  color: theme.colorScheme.secondaryContainer,
-                ),
-                children: [
-                  cell(0, Text('SUM', style: sumStyle)),
-                  for (var i = 0; i < game.players.length; i++)
-                    cell(
-                      i + 1,
-                      Center(child: Text('${totals[i]}', style: sumStyle)),
+                for (var r = 0; r < game.rounds.length; r++)
+                  TableRow(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: game.startsWhistStack(r) ? stackLine : rowLine,
+                      ),
                     ),
-                ],
-              ),
-            ],
+                    children: [
+                      cell(0, Text('R${game.roundNumber(r)}')),
+                      for (var i = 0; i < game.players.length; i++)
+                        cell(
+                          i + 1,
+                          Center(child: Text('${game.rounds[r][i]}')),
+                        ),
+                    ],
+                  ),
+                TableRow(
+                  decoration: BoxDecoration(
+                    border: Border(top: rowLine),
+                    color: theme.colorScheme.secondaryContainer,
+                  ),
+                  children: [
+                    cell(0, Text('SUM', style: sumStyle)),
+                    for (var i = 0; i < game.players.length; i++)
+                      cell(
+                        i + 1,
+                        Center(child: Text('${totals[i]}', style: sumStyle)),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

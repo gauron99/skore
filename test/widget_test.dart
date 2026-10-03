@@ -1,12 +1,16 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:skore/data/app_data.dart';
 import 'package:skore/data/game.dart';
 import 'package:skore/main.dart';
+import 'package:skore/screens/game_sheet_screen.dart';
 import 'package:skore/screens/scoreboard_screen.dart';
 import 'package:skore/screens/setup_screen.dart';
 import 'package:skore/widgets/paper_score_sheet.dart';
@@ -41,6 +45,73 @@ List<String> menuTitles(WidgetTester tester) => [
   ))
     (tile.title! as Text).data!,
 ];
+
+final screenKey = GlobalKey();
+
+/// [home] at phone size (420x800, 1 px per point), ready for [pixelsOf].
+Future<void> pumpPhone(WidgetTester tester, Widget home) async {
+  tester.view.physicalSize = const Size(420, 800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: screenKey,
+      child: MaterialApp(home: home),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// The RGBA bytes of [area] on screen, so two moments can be compared.
+Future<Uint8List> pixelsOf(WidgetTester tester, Rect area) async {
+  final screen = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(screenKey),
+  );
+  final bytes = (await tester.runAsync(() async {
+    final image = await screen.toImage();
+    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    image.dispose();
+    return data!.buffer.asUint8List();
+  }))!;
+  final width = screen.size.width.round();
+  final box = area.intersect(Offset.zero & screen.size);
+  final left = box.left.round(), right = box.right.round();
+  return Uint8List.fromList([
+    for (var y = box.top.round(); y < box.bottom.round(); y++)
+      ...bytes.sublist((y * width + left) * 4, (y * width + right) * 4),
+  ]);
+}
+
+/// The same pixels as [expected], give or take anti-aliasing: a row at a
+/// fractional position can differ by a level or two at its edges.
+Matcher samePixels(Uint8List expected) => predicate<Uint8List>(
+  (actual) =>
+      actual.length == expected.length &&
+      Iterable<int>.generate(
+        actual.length,
+      ).every((i) => (actual[i] - expected[i]).abs() <= 2),
+  'the same pixels, give or take anti-aliasing',
+);
+
+/// Where the round table's names row is on screen right now.
+Rect namesRow(WidgetTester tester) {
+  final table = tester.renderObject<RenderTable>(find.byType(Table));
+  return MatrixUtils.transformRect(
+    table.getTransformTo(null),
+    table.getRowBox(0),
+  );
+}
+
+/// A game of [rounds] rounds with made-up scores.
+Game longGame(List<String> players, int rounds, {int? targetRounds}) {
+  final game = Game(players: players, targetRounds: targetRounds);
+  for (var r = 0; r < rounds; r++) {
+    game.addRound([
+      for (var i = 0; i < players.length; i++) (r * 7 + i * 3) % 13,
+    ]);
+  }
+  return game;
+}
 
 /// Scrolls the setup list until [finder] is built and visible. (ListView
 /// builds lazily, so off-screen children don't exist for ensureVisible.)
@@ -887,6 +958,121 @@ void main() {
     plain.endedManually = true;
     await show(plain);
     expect(heavyRows(sheet), isEmpty);
+  });
+
+  testWidgets('live round table keeps the names row on screen', (tester) async {
+    await pumpPhone(
+      tester,
+      ScoreboardScreen(
+        game: longGame(['Ana', 'Ben', 'Cara'], 30),
+        onRematch: () {},
+        onChangeSetup: () {},
+        onShowHistory: () {},
+        onPersist: () async {},
+      ),
+    );
+    final names = namesRow(tester);
+    final atRest = await pixelsOf(tester, names);
+
+    await tester.dragFrom(
+      names.center.translate(0, 200),
+      const Offset(0, -400),
+    );
+    await tester.pumpAndSettle();
+
+    // The real names row scrolled away; the pinned one shows it in place.
+    expect(namesRow(tester).bottom, lessThan(names.top));
+    expect(await pixelsOf(tester, names), samePixels(atRest));
+  });
+
+  testWidgets(
+    'pinned names row stays over its columns when scrolled sideways',
+    (tester) async {
+      await pumpPhone(
+        tester,
+        ScoreboardScreen(
+          game: longGame([
+            'Anastasia',
+            'Benedikt',
+            'Caroline',
+            'Dominika',
+            'Eliska',
+            'Frantisek',
+          ], 30),
+          onRematch: () {},
+          onChangeSetup: () {},
+          onShowHistory: () {},
+          onPersist: () async {},
+        ),
+      );
+      final names = namesRow(tester);
+      expect(names.width, greaterThan(420)); // wider than the phone
+      final start = Offset(210, names.bottom + 100);
+      await tester.dragFrom(start, const Offset(-200, 0));
+      await tester.pumpAndSettle();
+      final sideways = namesRow(tester);
+      expect(sideways.left, lessThan(names.left));
+      final header = await pixelsOf(tester, sideways);
+
+      await tester.dragFrom(start, const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      // Same columns, same pixels: the pinned row moved sideways with them.
+      expect(namesRow(tester).left, sideways.left);
+      expect(namesRow(tester).bottom, lessThan(sideways.top));
+      expect(await pixelsOf(tester, sideways), samePixels(header));
+    },
+  );
+
+  testWidgets('paper sheet keeps the names row on screen', (tester) async {
+    final game = longGame(['Ana', 'Ben', 'Cara'], 30, targetRounds: 30);
+
+    // Final standings: the sheet scrolls under the winner banner.
+    await pumpPhone(
+      tester,
+      ScoreboardScreen(
+        game: game,
+        onRematch: () {},
+        onChangeSetup: () {},
+        onShowHistory: () {},
+        onPersist: () async {},
+      ),
+    );
+    var names = namesRow(tester);
+    var atRest = await pixelsOf(tester, names);
+    await tester.dragFrom(
+      names.center.translate(0, 200),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    expect(namesRow(tester).bottom, lessThan(names.top));
+    expect(await pixelsOf(tester, names), samePixels(atRest));
+
+    // Past games: banner and sheet scroll together, then the names row
+    // stays at the top of the list. Compare it there with the real row
+    // scrolled to exactly that spot, so both sit on the same pixels.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await pumpPhone(tester, GameSheetScreen(game: game, title: 'Past game'));
+    final listTop = tester.getRect(find.byType(ListView)).top;
+    final list = tester
+        .state<ScrollableState>(
+          find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position;
+    list.jumpTo(namesRow(tester).top - listTop);
+    await tester.pump();
+    names = namesRow(tester);
+    expect(names.top, moreOrLessEquals(listTop));
+    atRest = await pixelsOf(tester, names);
+    list.jumpTo(list.pixels + 300);
+    await tester.pump();
+    expect(namesRow(tester).bottom, lessThan(listTop));
+    expect(await pixelsOf(tester, names), samePixels(atRest));
   });
 
   testWidgets('round popup: See scores hides it; bottom bar restores drafts', (
