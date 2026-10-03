@@ -13,10 +13,9 @@ Work from this repo root. Flutter must be on PATH.
     make test                     # after code changes
     make shots                    # after UI changes (needs DISPLAY)
     make shots ONLY=name,name     # recapture a subset
-    make release-check            # signing + secrets + clean main + tests
 
-Do not push. The user cuts a release with `make release VERSION=X.Y.Z`
-(or omits VERSION to bump the last GitHub patch).
+Do not push. Every push to main that changes the app is a release: CI
+tests it and ships the next patch version (`.github/workflows/release.yml`).
 
 Source control is `jj`, not git.
 
@@ -45,9 +44,10 @@ phone will not update: Android shows "Something went wrong" /
 "did not install". Uninstall once, then install the current signed
 arm64 file.
 
-`make release-check` fails if the keystore or secrets are missing. The
-Release APK workflow fails closed too. Do not restore a debug-signing
-fallback.
+The Release APK workflow fails closed if the secrets are missing. Do not
+restore a debug-signing fallback. Do not run `scripts/setup-signing.sh`
+on a machine without the existing keystore: it would make a new key and
+replace the secrets, and the phone could no longer update in place.
 
 ## UI review
 

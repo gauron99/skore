@@ -3,9 +3,10 @@ name: Release APK
 # Attaches an installable APK to a GitHub Release so it can be downloaded
 # straight from the phone's browser (public repo — no login needed).
 #
-# TWO ways it runs:
-#   1. push of a `v*` tag -> builds that tag and creates/updates its release
-#   2. workflow_dispatch  -> manual run from the Actions tab, given a tag
+# Every push to main that changes the app ships: analyze, test, build a
+# signed APK, then create the tag and the release on that commit. The
+# version is the highest vX.Y.Z tag plus one patch. For a minor or major
+# bump, run this workflow from the Actions tab and give it a version.
 #
 # The APK is a --release build signed with the stable keystore from repo
 # secrets (scripts/setup-signing.sh). Android only installs an update if
@@ -14,28 +15,37 @@ name: Release APK
 # every run and showed "Something went wrong" on the phone.
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    # Only changes that end up in the APK make a release.
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
   workflow_dispatch:
     inputs:
-      tag:
-        description: Existing tag to build (e.g. v0.1.0)
-        required: true
+      version:
+        description: Version to release (X.Y.Z). Empty means next patch.
+        required: false
         type: string
 
 permissions:
   contents: write
 
+# One release at a time, so two quick pushes cannot claim the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
+    # Releases come from main only, also when started by hand.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.ref_name }}
 
       # The Android Gradle Plugin declared by the Flutter template requires
       # JDK 17+. setup-java also caches ~/.gradle via cache: 'gradle'.
@@ -58,6 +68,40 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # A failing check stops the release before anything is tagged.
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Pick the version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            version="${INPUT_VERSION#v}"
+          else
+            latest=$(git ls-remote --tags --refs origin 'refs/tags/v*' |
+              sed 's#.*refs/tags/v##' | sort -V | tail -n1)
+            if [ -z "$latest" ]; then
+              echo "::error::No vX.Y.Z tag yet. Run this workflow with a version."
+              exit 1
+            fi
+            IFS=. read -r major minor patch <<< "$latest"
+            version="$major.$minor.$((patch + 1))"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version '$version' is not X.Y.Z."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "::error::Tag v$version already exists."
+            exit 1
+          fi
+          echo "TAG=v$version" >> "$GITHUB_ENV"
+          echo "Releasing v$version"
 
       # Restore the stable release keystore from secrets (set once via
       # scripts/setup-signing.sh) so every release carries the SAME
@@ -102,12 +146,14 @@ jobs:
           cp "$src" "dist/skore-$TAG.apk"
           ls -la dist/
 
-      # Creates the release for the tag if it doesn't exist yet, or adds the
-      # APK to it if it does.
+      # Creates the tag on this commit together with the release. A tag
+      # made with the workflow token starts no other workflow, so this
+      # cannot loop.
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
           files: dist/skore-*.apk

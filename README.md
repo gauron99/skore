@@ -47,8 +47,6 @@ Flutter must be on your PATH. Then:
     make test           # unit + widget tests
     make shots          # named Linux UI screenshots (needs DISPLAY)
     make apk            # debug APK (needs JDK 17 + Android SDK)
-    make release-check  # signing key, GitHub secrets, tests, clean main
-    make release VERSION=X.Y.Z  # those checks, then tag a GitHub Release
     make clean          # drop build outputs
 
 ## APK
@@ -59,16 +57,14 @@ phone's browser, download, and install (sideloading must be allowed). Each
 release is one signed APK for phones (arm64), about 20MB, same shape as
 Hana's installable file. Not a zip of per-CPU APKs.
 
-Cut a release from a clean tree on `main`:
-
-    make release-check              # stop if signing or tests are not ready
-    make release VERSION=0.1.3      # push main if needed, create v0.1.3
-    # omit VERSION to bump the patch of the latest GitHub release
-
-That runs `gh release create vX.Y.Z --target main --generate-notes`. The
-Release APK workflow builds a signed APK and attaches it to the GitHub
-release. Watch the Actions tab; the phone download is ready when the APK
-appears on the release page.
+Every push to `main` that changes the app (`lib/`, `android/`, `assets/`,
+`pubspec.*`) is a release. The Release APK workflow analyzes and tests
+it, builds a signed APK, and publishes it as the next patch version
+(v0.1.5, then v0.1.6). Pushes that only touch docs, tests or scripts
+do not release. For a minor or major bump, run the workflow by hand
+(Actions → Release APK → Run workflow) and enter the version. Watch the
+Actions tab; the phone download is ready when the APK appears on the
+release page.
 
 CI also analyzes, tests, and compile-checks a debug APK on every push and PR;
 a manual CI run (Actions → CI → Run workflow) uploads that debug APK as a
@@ -77,9 +73,10 @@ a manual CI run (Actions → CI → Run workflow) uploads that debug APK as a
 Every release auto-increments its Android versionCode (from the workflow run
 number), so newer releases always register as updates. Updates only install
 in place (keeping game data) when every APK is signed with the same
-keystore. `make release-check` verifies `~/skore-release.jks` and the four
-GitHub Actions secrets. Run `./scripts/setup-signing.sh` once if those are
-missing, and back up the keystore plus password. A debug-signed build uses
+keystore. CI signs with the four GitHub Actions secrets that
+`./scripts/setup-signing.sh` set up once; keep a backup of the keystore
+and its password. Do not run that script again without the original
+keystore: it would make a new key. A debug-signed build uses
 a new cert each CI run; Android then shows "Something went wrong" instead
 of updating, and the fix is uninstall (which wipes data) plus a signed
 release.
