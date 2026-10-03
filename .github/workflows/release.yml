@@ -44,8 +44,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      # Full history and tags: the release notes list the commits since the
+      # previous tag.
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       # The Android Gradle Plugin declared by the Flutter template requires
       # JDK 17+. setup-java also caches ~/.gradle via cache: 'gradle'.
@@ -103,6 +107,13 @@ jobs:
           echo "TAG=v$version" >> "$GITHUB_ENV"
           echo "Releasing v$version"
 
+      # Commit subjects since the previous tag. GitHub's generated notes
+      # only list merged PRs, and main gets direct pushes.
+      - name: Write release notes
+        run: |
+          scripts/release-notes.sh "$TAG" "$GITHUB_SHA" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
       # Restore the stable release keystore from secrets (set once via
       # scripts/setup-signing.sh) so every release carries the SAME
       # signature. Android only installs an update if this cert matches
@@ -155,5 +166,5 @@ jobs:
           tag_name: ${{ env.TAG }}
           name: ${{ env.TAG }}
           target_commitish: ${{ github.sha }}
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/notes.md
           files: dist/skore-*.apk
