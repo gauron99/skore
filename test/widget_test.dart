@@ -9,6 +9,7 @@ import 'package:skore/data/game.dart';
 import 'package:skore/main.dart';
 import 'package:skore/screens/scoreboard_screen.dart';
 import 'package:skore/screens/setup_screen.dart';
+import 'package:skore/widgets/paper_score_sheet.dart';
 import 'package:skore/widgets/whist_bid_dialog.dart';
 
 Future<void> pumpApp(WidgetTester tester) async {
@@ -828,6 +829,64 @@ void main() {
     expect(labelOf('Ben'), 'Bids 1st');
     expect(labelOf('Cara'), 'Bids 2nd');
     expect(labelOf('Ana'), 'Deals · bids last');
+  });
+
+  testWidgets('a heavier line splits Whist stacks in both round tables', (
+    tester,
+  ) async {
+    /// Table rows whose top line is heavier than the 1px grid.
+    List<int> heavyRows(Finder table) {
+      double topWidth(TableRow row) =>
+          ((row.decoration as BoxDecoration?)?.border as Border?)?.top.width ??
+          0;
+      final rows = tester.widget<Table>(table).children;
+      return [
+        for (var i = 0; i < rows.length; i++)
+          if (topWidth(rows[i]) > 1) i,
+      ];
+    }
+
+    final sheet = find.descendant(
+      of: find.byType(PaperScoreSheet),
+      matching: find.byType(Table),
+    );
+    Game whistAfter(int hands) {
+      final game = Game(
+        players: ['Ana', 'Ben', 'Cara'],
+        whist: true,
+        whistMaxHand: 2,
+        whistCycles: 3,
+      );
+      for (var i = 0; i < hands; i++) {
+        game.lockBids([0, 0, 0]);
+        game.finishWhistHand();
+      }
+      return game;
+    }
+
+    Future<void> show(Game game) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(scoreboardApp(game));
+      await tester.pumpAndSettle();
+    }
+
+    // Stacks of 2-then-1 hands: stacks 2 and 3 open at hands 3 and 5,
+    // which are table rows 3 and 5 under the heading row.
+    await show(whistAfter(5));
+    expect(heavyRows(find.byType(Table)), [3, 5]);
+    await show(whistAfter(6));
+    expect(heavyRows(sheet), [3, 5]);
+
+    // Not Whist: 9 rounds, past where an 8-card stack would end.
+    final plain = Game(players: ['Ana', 'Ben']);
+    for (var i = 0; i < 9; i++) {
+      plain.addRound([1, 2]);
+    }
+    await show(plain);
+    expect(heavyRows(find.byType(Table)), isEmpty);
+    plain.endedManually = true;
+    await show(plain);
+    expect(heavyRows(sheet), isEmpty);
   });
 
   testWidgets('round popup: See scores hides it; bottom bar restores drafts', (

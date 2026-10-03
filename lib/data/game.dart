@@ -146,6 +146,11 @@ class Game {
   /// Display number of the round about to be played.
   int get nextRoundNumber => roundNumber(rounds.length);
 
+  /// True if the round at [index] opens a new Whist stack (not the first
+  /// one). The deal moves on there too.
+  bool startsWhistStack(int index) =>
+      whist && index > 0 && index % whistMaxHand == 0;
+
   /// Cumulative score per player across all played rounds.
   List<int> get totals {
     final sums = List<int>.filled(players.length, 0);

@@ -589,63 +589,80 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
       );
     }
     final theme = Theme.of(context);
-    final gridColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
+    final columnLine = BorderSide(
+      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+    );
+    // DataTable drew row lines in Material 3's divider color, not the
+    // faded column color.
+    final rowLine = BorderSide(color: theme.colorScheme.outlineVariant);
+    // Between Whist stacks: heavier than the grid, matching the paper sheet.
+    final stackLine = BorderSide(color: theme.colorScheme.outline, width: 2);
+    final headingStyle = theme.textTheme.titleSmall;
+    final sumStyle = headingStyle?.copyWith(fontWeight: FontWeight.w700);
+    final totals = game.totals;
+
+    // A plain Table with DataTable's metrics (heading 56, rows 48, margins
+    // 24, column gap 56): DataRow has no border of its own, and the line
+    // between stacks needs one.
+    Widget cell(int column, Widget child, {double height = 48}) => Container(
+      height: height,
+      padding: EdgeInsetsDirectional.only(
+        start: column == 0 ? 24 : 28,
+        end: column == game.players.length ? 24 : 28,
+      ),
+      alignment: AlignmentDirectional.centerStart,
+      child: child,
+    );
+
     return Align(
       alignment: Alignment.topCenter,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SingleChildScrollView(
-          child: Theme(
-            data: theme.copyWith(dividerColor: gridColor),
-            child: DataTable(
-              border: TableBorder(
-                verticalInside: BorderSide(width: 1, color: gridColor),
-              ),
-              columns: [
-                const DataColumn(label: Text('#')),
-                for (final name in game.players)
-                  DataColumn(
-                    headingRowAlignment: MainAxisAlignment.center,
-                    label: Text(name),
-                  ),
-              ],
-              rows: [
-                for (var r = 0; r < game.rounds.length; r++)
-                  DataRow(
-                    cells: [
-                      DataCell(Text('R${game.roundNumber(r)}')),
-                      for (final score in game.rounds[r])
-                        DataCell(Center(child: Text('$score'))),
-                    ],
-                  ),
-                DataRow(
-                  color: WidgetStateProperty.all(
-                    theme.colorScheme.secondaryContainer,
-                  ),
-                  cells: [
-                    DataCell(
-                      Text(
-                        'SUM',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+          child: Table(
+            defaultColumnWidth: const IntrinsicColumnWidth(),
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            border: TableBorder(verticalInside: columnLine),
+            children: [
+              TableRow(
+                children: [
+                  cell(0, Text('#', style: headingStyle), height: 56),
+                  for (var i = 0; i < game.players.length; i++)
+                    cell(
+                      i + 1,
+                      Center(child: Text(game.players[i], style: headingStyle)),
+                      height: 56,
                     ),
-                    for (final total in game.totals)
-                      DataCell(
-                        Center(
-                          child: Text(
-                            '$total',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
+                ],
+              ),
+              for (var r = 0; r < game.rounds.length; r++)
+                TableRow(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: game.startsWhistStack(r) ? stackLine : rowLine,
+                    ),
+                  ),
+                  children: [
+                    cell(0, Text('R${game.roundNumber(r)}')),
+                    for (var i = 0; i < game.players.length; i++)
+                      cell(i + 1, Center(child: Text('${game.rounds[r][i]}'))),
                   ],
                 ),
-              ],
-            ),
+              TableRow(
+                decoration: BoxDecoration(
+                  border: Border(top: rowLine),
+                  color: theme.colorScheme.secondaryContainer,
+                ),
+                children: [
+                  cell(0, Text('SUM', style: sumStyle)),
+                  for (var i = 0; i < game.players.length; i++)
+                    cell(
+                      i + 1,
+                      Center(child: Text('${totals[i]}', style: sumStyle)),
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

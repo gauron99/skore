@@ -20,6 +20,14 @@ class PaperScoreSheet extends StatelessWidget {
       child: Center(child: child),
     );
 
+    // Between Whist stacks: heavier than the grid, lighter than the double
+    // rule above the sums.
+    final stackLine = BoxDecoration(
+      border: Border(
+        top: BorderSide(color: theme.colorScheme.outline, width: 2),
+      ),
+    );
+
     return Table(
       defaultColumnWidth: const IntrinsicColumnWidth(),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
@@ -52,6 +60,7 @@ class PaperScoreSheet extends StatelessWidget {
         ),
         for (var r = 0; r < game.rounds.length; r++)
           TableRow(
+            decoration: game.startsWhistStack(r) ? stackLine : null,
             children: [
               cell(Text('R${game.roundNumber(r)}')),
               for (final score in game.rounds[r]) cell(Text('$score')),

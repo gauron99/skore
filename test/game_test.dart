@@ -202,6 +202,16 @@ void main() {
       expect(dealers, [2, 2, 0, 0, 1, 1]);
     });
 
+    test('startsWhistStack marks the first hand of each later stack', () {
+      final game = fresh();
+      expect(
+        [for (var r = 0; r < 6; r++) game.startsWhistStack(r)],
+        [false, false, true, false, true, false],
+      );
+      // Not Whist: no stacks, even where an 8-card stack would end.
+      expect(Game(players: ['A', 'B']).startsWhistStack(8), isFalse);
+    });
+
     test('marked players score bid plus 10; unmarked score 0', () {
       final game = fresh();
       game.lockBids([2, 1, 0]);
