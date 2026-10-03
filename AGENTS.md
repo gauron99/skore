@@ -19,8 +19,9 @@ or a symlink to one) if it exists, else `flutter` on PATH;
 `make shots` stops if the window is not 420x800. On Hyprland it floats the
 skore window at that size by itself.
 
-Do not push. Every push to main that changes the app is a release: CI
-tests it and ships the next patch version (`.github/workflows/release.yml`).
+Never push, move `main`, or run `make ship`. Every push to main that
+changes the app is a release to the user's phone
+(`.github/workflows/release.yml`); the user ships with `make ship`.
 
 Source control is `jj`, not git.
 

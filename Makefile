@@ -43,6 +43,10 @@ $(SHOTS_VENV)/.installed: scripts/ui_shots_requirements.txt
 	$(SHOTS_VENV)/bin/pip install -r scripts/ui_shots_requirements.txt
 	touch $(SHOTS_VENV)/.installed
 
+.PHONY: ship
+ship: ## Push REV to main (app changes make a release). DRY_RUN=1 only checks
+	@FLUTTER="$(FLUTTER)" REV="$(REV)" DRY_RUN="$(DRY_RUN)" scripts/ship.sh
+
 .PHONY: clean
 clean: ## Drop build/ and .dart_tool/
 	$(FLUTTER) clean

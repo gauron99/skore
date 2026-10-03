@@ -48,6 +48,7 @@ Flutter must be on your PATH, or put an SDK (or a symlink to one) at
     make test           # unit + widget tests
     make shots          # named Linux UI screenshots (needs DISPLAY)
     make apk            # debug APK (needs JDK 17 + Android SDK)
+    make ship REV=<change>  # push a change to main (see APK below)
     make clean          # drop build outputs
 
 ## APK
@@ -57,6 +58,12 @@ Grab the latest APK from the repo's
 phone's browser, download, and install (sideloading must be allowed). Each
 release is one signed APK for phones (arm64), about 20MB, same shape as
 Hana's installable file. Not a zip of per-CPU APKs.
+
+Ship with `make ship REV=<change>` (`DRY_RUN=1` checks and tests without
+pushing). It fetches, checks that the change sits on top of `main`, is
+described, has no conflicts or local-only files and is checked out, runs
+analyze and tests, says whether the push makes a release, then moves
+`main` to it and pushes.
 
 Every push to `main` that changes the app (`lib/`, `android/`, `assets/`,
 `pubspec.*`) is a release. The Release APK workflow analyzes and tests
