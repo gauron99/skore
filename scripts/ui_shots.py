@@ -10,6 +10,11 @@ Capture on WSLg/X11: XGetImage on the app window. Grabbing the root window
 (window origin + fraction of client size) with press/release; window-relative
 click often misses.
 
+Every shot needs the window at exactly 420x800; the run stops otherwise.
+Hyprland tiles new windows, so when HYPRLAND_INSTANCE_SIGNATURE is set and
+hyprctl exists, the skore window is floated and sized right after it
+appears. Those are per-window dispatches; nothing outlives the app.
+
 Kill leftover `skore` by exact process name (`pkill -x skore`) before a run,
 then the child pid. Do not pkill -f: the pattern matches the calling shell.
 
@@ -42,6 +47,9 @@ OUT_DIR = ROOT / "screenshots"
 PREFS = Path.home() / ".local/share/com.gauron99.skore/shared_preferences.json"
 BACKUP = ROOT / ".tools/skore-prefs-backup.json"
 PREFS_KEY = "flutter.skore.data"
+
+# The phone-shaped window every shot and CLICK fraction assumes.
+WIDTH, HEIGHT = 420, 800
 
 # Client-size fractions for the 420x800 default window (see linux/runner).
 # Update these here if the bottom bar or menu layout moves. Not in the skill.
@@ -208,8 +216,20 @@ def _grab() -> Image.Image:
     ).convert("RGB")
 
 
+def require_phone_size(width: int, height: int) -> None:
+    if (width, height) != (WIDTH, HEIGHT):
+        raise SystemExit(
+            f"ui_shots: the skore window is {width}x{height}, not "
+            f"{WIDTH}x{HEIGHT}. The CLICK fractions and the phone layout in "
+            "the shots assume that size, so clicks would miss and the PNGs "
+            "would not show the phone. Check what resized the window "
+            "(tiling, scaling)."
+        )
+
+
 def capture(path: Path) -> None:
     img = _grab()
+    require_phone_size(img.width, img.height)
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path)
     print(f"saved {path.relative_to(ROOT)} {img.width}x{img.height}")
@@ -256,7 +276,13 @@ def click(name: str) -> None:
     wid, ox, oy, width, height = window_id_and_origin()
     x = ox + int(width * fx)
     y = oy + int(height * fy)
-    subprocess.run([xdotool, "windowactivate", "--sync", str(wid)], check=False)
+    # On Hyprland this prints XGetWindowProperty[_NET_ACTIVE_WINDOW] failed;
+    # harmless, so its stderr is dropped.
+    subprocess.run(
+        [xdotool, "windowactivate", "--sync", str(wid)],
+        check=False,
+        stderr=subprocess.DEVNULL,
+    )
     time.sleep(0.15)
     subprocess.run([xdotool, "mousemove", str(x), str(y)], check=True)
     time.sleep(0.08)
@@ -264,6 +290,75 @@ def click(name: str) -> None:
     time.sleep(0.12)
     subprocess.run([xdotool, "mouseup", "1"], check=True)
     time.sleep(0.55)
+
+
+def hover_window() -> None:
+    """On Hyprland the first click of a run can land as focus only. Put the
+    pointer in the window and let focus settle first."""
+    _, ox, oy, width, height = window_id_and_origin()
+    subprocess.run(
+        ["xdotool", "mousemove", str(ox + width // 2), str(oy + height // 2)],
+        check=True,
+    )
+    time.sleep(0.4)
+
+
+def on_hyprland() -> bool:
+    return bool(os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")) and bool(
+        shutil.which("hyprctl")
+    )
+
+
+def hyprland_client(pid: int) -> dict | None:
+    """The skore window in `hyprctl clients -j`: by pid, else the one
+    window whose class names skore."""
+    out = subprocess.run(
+        ["hyprctl", "clients", "-j"], capture_output=True, text=True, check=True
+    ).stdout
+    clients = json.loads(out)
+    for client in clients:
+        if client.get("pid") == pid:
+            return client
+    named = [c for c in clients if "skore" in str(c.get("class", "")).lower()]
+    return named[0] if len(named) == 1 else None
+
+
+def float_on_hyprland(pid: int) -> None:
+    """Float the skore window at the phone size and center it. Hyprland 0.55+
+    takes Lua dispatchers: `hyprctl dispatch '<hl.dsp... call>'`."""
+    client = None
+    for _ in range(25):
+        client = hyprland_client(pid)
+        if client is not None:
+            break
+        time.sleep(0.2)
+    if client is None:
+        raise RuntimeError("skore window not found in hyprctl clients")
+    target = f'window = "address:{client["address"]}"'
+    for lua in (
+        f'hl.dsp.window.float({{ {target}, action = "enable" }})',
+        f"hl.dsp.window.resize({{ {target}, x = {WIDTH}, y = {HEIGHT} }})",
+        f"hl.dsp.window.center({{ {target} }})",
+    ):
+        result = subprocess.run(
+            ["hyprctl", "dispatch", lua], capture_output=True, text=True
+        )
+        if result.stdout.strip() != "ok":
+            raise RuntimeError(
+                f"hyprctl dispatch {lua!r} failed: "
+                f"{(result.stdout + result.stderr).strip()}"
+            )
+
+
+def wait_for_phone_size(d: display.Display) -> None:
+    """The resize reaches the X window a moment after the dispatch."""
+    for _ in range(25):
+        w = find_window(d)
+        if w is not None:
+            g = w.get_geometry()
+            if (g.width, g.height) == (WIDTH, HEIGHT):
+                return
+        time.sleep(0.2)
 
 
 def kill_stale() -> None:
@@ -296,10 +391,15 @@ def launch() -> subprocess.Popen:
                     f"skore exited {proc.returncode}; see .tools/skore-shots.log"
                 )
             if find_window(d) is not None:
+                if on_hyprland():
+                    float_on_hyprland(proc.pid)
+                    wait_for_phone_size(d)
                 wait_painted(proc)
+                g = find_window(d).get_geometry()
+                require_phone_size(g.width, g.height)
                 return proc
         raise RuntimeError("skore window did not appear")
-    except Exception:
+    except BaseException:  # also SystemExit from the size check, and Ctrl-C
         stop(proc)
         raise
 
@@ -321,6 +421,8 @@ def run_shot(shot: Shot) -> None:
     write_prefs(FIXTURES[shot.fixture])
     proc = launch()
     try:
+        if shot.clicks:
+            hover_window()
         for step in shot.clicks:
             click(step)
         capture(OUT_DIR / f"{shot.name}.png")

@@ -8,11 +8,16 @@ UI screenshot loop: `.grok/skills/skore-ui-review/SKILL.md`.
 
 ## Commands
 
-Work from this repo root. Flutter must be on PATH.
+Work from this repo root. Make uses `.tools/flutter` (git-ignored, an SDK
+or a symlink to one) if it exists, else `flutter` on PATH;
+`make FLUTTER=/path/to/bin/flutter` overrides both.
 
     make test                     # after code changes
     make shots                    # after UI changes (needs DISPLAY)
     make shots ONLY=name,name     # recapture a subset
+
+`make shots` stops if the window is not 420x800. On Hyprland it floats the
+skore window at that size by itself.
 
 Do not push. Every push to main that changes the app is a release: CI
 tests it and ships the next patch version (`.github/workflows/release.yml`).

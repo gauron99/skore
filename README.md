@@ -41,7 +41,8 @@ A simple score counter for card games, built with Flutter. Targets Android
 
 ## Dev
 
-Flutter must be on your PATH. Then:
+Flutter must be on your PATH, or put an SDK (or a symlink to one) at
+`.tools/flutter`, which is git-ignored and wins over PATH. Then:
 
     make run            # run on Linux desktop
     make test           # unit + widget tests
