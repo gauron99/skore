@@ -59,9 +59,20 @@ void main() {
       expect(game.isOver, isTrue);
     });
 
-    test('undo also reopens a manually ended game', () {
+    test('undo also reopens a manually ended game, keeping its rounds', () {
       final game = Game(players: ['A', 'B'])..addRound([1, 2]);
       game.endedManually = true;
+      expect(game.canUndo, isTrue);
+      game.undoLastRound();
+      expect(game.isOver, isFalse);
+      expect(game.rounds, [
+        [1, 2],
+      ]);
+    });
+
+    test('a game ended before any round can still be undone', () {
+      final game = Game(players: ['A', 'B'])..endedManually = true;
+      expect(game.canUndo, isTrue);
       game.undoLastRound();
       expect(game.isOver, isFalse);
     });

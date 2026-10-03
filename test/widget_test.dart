@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:skore/data/app_data.dart';
 import 'package:skore/data/game.dart';
 import 'package:skore/main.dart';
 import 'package:skore/screens/scoreboard_screen.dart';
@@ -12,6 +15,31 @@ Future<void> pumpApp(WidgetTester tester) async {
   await tester.pumpWidget(const SkoreApp());
   await tester.pumpAndSettle();
 }
+
+Widget scoreboardApp(
+  Game game, {
+  VoidCallback? onChangeSetup,
+  VoidCallback? onShowHistory,
+}) => MaterialApp(
+  home: ScoreboardScreen(
+    game: game,
+    onRematch: () {},
+    onChangeSetup: onChangeSetup ?? () {},
+    onShowHistory: onShowHistory ?? () {},
+    onPersist: () async {},
+  ),
+);
+
+/// Menu item titles, top to bottom.
+List<String> menuTitles(WidgetTester tester) => [
+  for (final tile in tester.widgetList<ListTile>(
+    find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.byType(ListTile),
+    ),
+  ))
+    (tile.title! as Text).data!,
+];
 
 /// Scrolls the setup list until [finder] is built and visible. (ListView
 /// builds lazily, so off-screen children don't exist for ensureVisible.)
@@ -266,10 +294,16 @@ void main() {
     expect(find.text('Ben'), findsWidgets);
     expect(find.text('Players'), findsNothing);
 
-    // The archived game shows up in Past games as a score sheet.
+    // Back to setup archives the rematch too. The archived games show up in
+    // Past games (setup's history icon) as score sheets.
     await tester.tap(find.text('Menu'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Past games'));
+    await tester.tap(find.text('Back to setup'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Players'), findsOneWidget);
+    await tester.tap(find.byTooltip('Past games'));
     await tester.pumpAndSettle();
     expect(find.text('Ana 5 · Ben 3'), findsOneWidget);
     expect(find.textContaining('winner: Ana'), findsOneWidget);
@@ -282,7 +316,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    // Delete all data -> back on a fresh setup, nothing stored.
+    // Delete all data -> back on a blank setup, nothing stored.
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete all data'));
@@ -290,6 +324,7 @@ void main() {
     await tester.tap(find.text('Yes'));
     await tester.pumpAndSettle();
     expect(find.text('Players'), findsOneWidget);
+    expect(find.text('Ana'), findsNothing);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('skore.data'), isNull);
@@ -628,6 +663,171 @@ void main() {
     expect(over.isOver, isTrue);
     expect(find.text('New game'), findsOneWidget);
     expect(find.text('D'), findsNothing);
+  });
+
+  testWidgets('running menu: Undo, End game, New game, Back to setup', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      scoreboardApp(Game(players: ['Ana', 'Ben'])..addRound([1, 2])),
+    );
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+
+    expect(menuTitles(tester), [
+      'Undo last round',
+      'End game',
+      'New game',
+      'Back to setup',
+    ]);
+    expect(find.text('Show who won'), findsOneWidget);
+    expect(find.text('Same players and rules'), findsOneWidget);
+    expect(find.text('Change players or rules'), findsOneWidget);
+    expect(find.text('Past games'), findsNothing);
+  });
+
+  testWidgets('game-over menu: Undo, Back to setup (no confirm), Past games', (
+    tester,
+  ) async {
+    var backToSetup = 0;
+    var pastGames = 0;
+    await tester.pumpWidget(
+      scoreboardApp(
+        Game(players: ['Ana', 'Ben'], targetRounds: 1)..addRound([5, 3]),
+        onChangeSetup: () => backToSetup++,
+        onShowHistory: () => pastGames++,
+      ),
+    );
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+    expect(menuTitles(tester), [
+      'Undo last round',
+      'Back to setup',
+      'Past games',
+    ]);
+
+    await tester.tap(find.text('Past games'));
+    await tester.pumpAndSettle();
+    expect(pastGames, 1);
+
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back to setup'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(backToSetup, 1);
+  });
+
+  testWidgets('Undo after End game reopens the game with every round', (
+    tester,
+  ) async {
+    final game = Game(players: ['Ana', 'Ben'])
+      ..addRound([1, 2])
+      ..addRound([3, 4]);
+    await tester.pumpWidget(scoreboardApp(game));
+
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('End game'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ben wins with 6 points!'), findsOneWidget);
+
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+    expect(menuTitles(tester).first, 'Undo');
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+
+    expect(game.isOver, isFalse);
+    expect(game.rounds, hasLength(2));
+    expect(find.text('Add round'), findsOneWidget);
+    expect(find.text('R1'), findsOneWidget);
+    expect(find.text('R2'), findsOneWidget);
+  });
+
+  testWidgets('Back to setup opens setup filled in from the archived game', (
+    tester,
+  ) async {
+    String fieldText(int i) =>
+        tester.widget<TextField>(find.byType(TextField).at(i)).controller!.text;
+    bool switchOn(String title) => tester
+        .widget<SwitchListTile>(find.widgetWithText(SwitchListTile, title))
+        .value;
+
+    await pumpApp(tester);
+    await tester.tap(find.text('Add player'));
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await tester.enterText(fields.at(2), 'Cara');
+    await tester.enterText(fields.at(3), '5'); // round limit
+    await tester.enterText(fields.at(4), '50'); // score target
+    await scrollTo(tester, find.text('Count rounds down'));
+    await tester.tap(find.text('Count rounds down'));
+    await scrollTo(tester, find.text('Lowest points wins'));
+    await tester.tap(find.text('Lowest points wins'));
+    await scrollTo(tester, find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back to setup'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Players'), findsOneWidget);
+    expect(fieldText(0), 'Ana');
+    expect(fieldText(1), 'Ben');
+    expect(fieldText(2), 'Cara');
+    expect(fieldText(3), '5');
+    expect(fieldText(4), '50');
+    expect(switchOn('Whist'), isFalse);
+    expect(switchOn('Count rounds down'), isTrue);
+    expect(switchOn('Lowest points wins'), isTrue);
+  });
+
+  testWidgets('setup fills in a Whist table from history, labels and all', (
+    tester,
+  ) async {
+    String? labelOf(String name) => tester
+        .widget<TextField>(find.widgetWithText(TextField, name))
+        .decoration!
+        .labelText;
+
+    final last = Game(
+      players: ['Ana', 'Ben', 'Cara'],
+      whist: true,
+      whistFirstDealer: 2,
+    );
+    SharedPreferences.setMockInitialValues({
+      'skore.data': jsonEncode(AppData(history: [last]).toJson()),
+    });
+    await pumpApp(tester);
+
+    expect(
+      tester
+          .widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'Whist'))
+          .value,
+      isTrue,
+    );
+    expect(labelOf('Ana'), 'Bids 1st');
+    expect(labelOf('Ben'), 'Bids 2nd');
+    expect(labelOf('Cara'), 'Deals · bids last');
+
+    await tester.timedDrag(
+      find.byIcon(Icons.drag_handle).at(0),
+      const Offset(0, 200),
+      const Duration(milliseconds: 500),
+    );
+    await tester.pumpAndSettle();
+    expect(labelOf('Ben'), 'Bids 1st');
+    expect(labelOf('Cara'), 'Bids 2nd');
+    expect(labelOf('Ana'), 'Deals · bids last');
   });
 
   testWidgets('round popup: See scores hides it; bottom bar restores drafts', (

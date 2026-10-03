@@ -38,9 +38,10 @@ If `make shots` fails, fix `scripts/ui_shots.py`. Do not capture with
   inside the Scaffold bar) so it stays above the phone buttons.
 - **New game** (end of game, and Menu during play): archives and starts
   another with the same players and rules. Setup form only via Menu, then
-  Set up a new game.
-- **Menu (in play):** Undo last round, End game, New game (same rules), Past
-  games, Set up a new game.
+  Back to setup (filled in from the last game).
+- **Menu (in play):** Undo last round (Undo in Whist), End game, New game
+  (same rules), Back to setup. No Past games.
+- **Menu (game over):** Undo, Back to setup, Past games.
 - **History:** a tap opens the paper score sheet (rounds, double rule, sums),
   not a totals-only dialog.
 - **Add round:** dialog for every player, empty counts as 0.

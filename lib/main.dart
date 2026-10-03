@@ -119,7 +119,13 @@ class _HomeGateState extends State<HomeGate> {
     }
     final game = data.current;
     return game == null
-        ? SetupScreen(onStart: _startGame, onShowHistory: _showHistory)
+        ? SetupScreen(
+            // Delete all data swaps in a new AppData: start a blank form.
+            key: ObjectKey(data),
+            lastGame: data.history.lastOrNull,
+            onStart: _startGame,
+            onShowHistory: _showHistory,
+          )
         : ScoreboardScreen(
             game: game,
             onRematch: _rematch,

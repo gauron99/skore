@@ -9,20 +9,22 @@ class SetupScreen extends StatefulWidget {
     super.key,
     required this.onStart,
     required this.onShowHistory,
+    this.lastGame,
   });
 
   final ValueChanged<Game> onStart;
   final VoidCallback onShowHistory;
+
+  /// Newest archived game, if any. The form starts filled in from it: the
+  /// same players in the same order, and the same rules.
+  final Game? lastGame;
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  final List<TextEditingController> _names = [
-    TextEditingController(),
-    TextEditingController(),
-  ];
+  final List<TextEditingController> _names = [];
   final TextEditingController _roundLimit = TextEditingController();
   final TextEditingController _scoreTarget = TextEditingController();
   bool _countDown = false;
@@ -32,12 +34,22 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   void initState() {
     super.initState();
+    final last = widget.lastGame;
+    for (final name in last?.players ?? const ['', '']) {
+      _names.add(_nameField(name));
+    }
+    if (last != null) {
+      _whist = last.whist;
+      _roundLimit.text = last.targetRounds?.toString() ?? '';
+      _scoreTarget.text = last.targetScore?.toString() ?? '';
+      _countDown = last.countDown;
+      _lowestWins = last.lowestWins;
+    }
+    // Older saves may hold fewer players than setup now allows.
+    _fillSeats();
     // The countdown switch only applies to fixed-length games; re-render as
     // the round limit is typed so its enabled state tracks the field.
     _roundLimit.addListener(() => setState(() {}));
-    for (final controller in _names) {
-      controller.addListener(() => setState(() {}));
-    }
   }
 
   @override
@@ -50,10 +62,11 @@ class _SetupScreenState extends State<SetupScreen> {
     super.dispose();
   }
 
+  TextEditingController _nameField([String text = '']) =>
+      TextEditingController(text: text)..addListener(() => setState(() {}));
+
   void _addPlayer() {
-    final controller = TextEditingController();
-    controller.addListener(() => setState(() {}));
-    setState(() => _names.add(controller));
+    setState(() => _names.add(_nameField()));
   }
 
   void _removePlayer(int index) {
@@ -142,14 +155,15 @@ class _SetupScreenState extends State<SetupScreen> {
   void _setWhist(bool value) {
     setState(() {
       _whist = value;
-      if (value) {
-        while (_names.length < 3) {
-          final controller = TextEditingController();
-          controller.addListener(() => setState(() {}));
-          _names.add(controller);
-        }
-      }
+      _fillSeats();
     });
+  }
+
+  /// Adds empty rows up to the minimum for the game type.
+  void _fillSeats() {
+    while (_names.length < _minPlayers) {
+      _names.add(_nameField());
+    }
   }
 
   @override

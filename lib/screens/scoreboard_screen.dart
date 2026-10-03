@@ -180,11 +180,13 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     widget.onRematch();
   }
 
-  Future<void> _changeSetup() async {
-    final confirmed = await _confirm(
-      'Archive this game and set up a different one?',
-    );
-    if (!confirmed) return;
+  Future<void> _changeSetup({required bool confirm}) async {
+    if (confirm) {
+      final ok = await _confirm(
+        'Archive this game and set up a different one?',
+      );
+      if (!ok) return;
+    }
     widget.onChangeSetup();
   }
 
@@ -240,63 +242,60 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     return '$base$scoreSuffix';
   }
 
+  /// After End game, Undo only reopens the game; elsewhere it takes back
+  /// the last scores.
+  String get _undoLabel =>
+      game.whist || game.endedManually ? 'Undo' : 'Undo last round';
+
   Future<void> _openMenu() async {
+    final over = game.isOver;
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (context) {
+        void close(VoidCallback action) {
+          Navigator.of(context).pop();
+          action();
+        }
+
         return SafeArea(
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!game.isOver) ...[
-                  ListTile(
-                    leading: const Icon(Icons.undo),
-                    title: Text(game.whist ? 'Undo' : 'Undo last round'),
-                    enabled: game.canUndo,
-                    onTap: game.canUndo
-                        ? () {
-                            Navigator.of(context).pop();
-                            _undoLastRound();
-                          }
-                        : null,
-                  ),
+                ListTile(
+                  leading: const Icon(Icons.undo),
+                  title: Text(_undoLabel),
+                  enabled: game.canUndo,
+                  onTap: game.canUndo ? () => close(_undoLastRound) : null,
+                ),
+                if (!over) ...[
                   ListTile(
                     leading: const Icon(Icons.flag_outlined),
                     title: const Text('End game'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _endGame();
-                    },
+                    subtitle: const Text('Show who won'),
+                    onTap: () => close(_endGame),
                   ),
                   ListTile(
                     leading: const Icon(Icons.replay),
                     title: const Text('New game'),
                     subtitle: const Text('Same players and rules'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _rematch(confirm: true);
-                    },
+                    onTap: () => close(() => _rematch(confirm: true)),
                   ),
                 ],
                 ListTile(
-                  leading: const Icon(Icons.history),
-                  title: const Text('Past games'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    widget.onShowHistory();
-                  },
-                ),
-                ListTile(
                   leading: const Icon(Icons.tune),
-                  title: const Text('Set up a new game'),
-                  subtitle: const Text('Different players or rules'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _changeSetup();
-                  },
+                  title: const Text('Back to setup'),
+                  subtitle: const Text('Change players or rules'),
+                  // Nothing is lost once the game is over.
+                  onTap: () => close(() => _changeSetup(confirm: !over)),
                 ),
+                if (over)
+                  ListTile(
+                    leading: const Icon(Icons.history),
+                    title: const Text('Past games'),
+                    onTap: () => close(widget.onShowHistory),
+                  ),
               ],
             ),
           ),
@@ -359,9 +358,6 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
         icon: const Icon(Icons.check),
         label: const Text('Finish round'),
       );
-    }
-    if (game.whist) {
-      return const FilledButton(onPressed: null, child: Text('Whist'));
     }
     return FilledButton.icon(
       onPressed: _addRound,

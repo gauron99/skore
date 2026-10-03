@@ -125,9 +125,13 @@ class Game {
         (i) => i == player || whistHit(i),
       ).every((hit) => hit);
 
-  bool get canUndo => whist
-      ? whistHits.any((hit) => hit) || whistBids != null || rounds.isNotEmpty
-      : rounds.isNotEmpty;
+  bool get canUndo =>
+      endedManually ||
+      (whist
+          ? whistHits.any((hit) => hit) ||
+                whistBids != null ||
+                rounds.isNotEmpty
+          : rounds.isNotEmpty);
 
   /// Display number of the round at [index]: 1-based counting up, or
   /// counting down from [targetRounds] when [countDown] is set.
@@ -286,10 +290,14 @@ class Game {
     rounds.add(List.of(scores));
   }
 
-  /// Drops the most recent round. Also reopens a manually ended game, so the
-  /// final standings can always be walked back.
+  /// Takes back the last step. A manually ended game only reopens, with
+  /// every round kept. Otherwise the most recent round is dropped, which
+  /// also reopens a game that ended on its own.
   void undoLastRound() {
-    endedManually = false;
+    if (endedManually) {
+      endedManually = false;
+      return;
+    }
     if (whist) {
       if (whistHits.any((hit) => hit)) {
         whistHits = List<bool>.filled(players.length, false);

@@ -10,7 +10,8 @@ A simple score counter for card games, built with Flutter. Targets Android
   top down — R8, R7, … R1) and/or a score target up front —
   the app calls the final standings after the last round, or the moment a
   player reaches the target (that only *ends* the game; who wins is still the
-  scoring direction's call). Leave both empty and play until *End game*.
+  scoring direction's call). Leave both empty and play until *Menu*, then
+  *End game*.
 - **Rounds in, totals out.** Enter every player's score once per round
   (negatives welcome); running totals are always on screen and the current
   leader wears the crown. Four or more players get a live 1st / 2nd / 3rd
@@ -21,13 +22,15 @@ A simple score counter for card games, built with Flutter. Targets Android
   (`shared_preferences`), so closing the app never loses a game.
 - **New game, same table.** After a game (and from *Menu* during one),
   *New game* archives the last one and starts another with the same players
-  and rules. *Menu*, then *Set up a new game*, is the way back to the setup
-  form.
+  and rules. *Menu*, then *Back to setup*, archives it too and opens the
+  setup form filled in from it, to change players or rules.
 - **Past games.** History lists every archived game; a tap opens the paper
   score sheet. Delete games one by one, or wipe everything with *Delete all
   data*.
-- **Undo.** *Menu*, then *Undo last round*, takes back the last scores.
-  Totals are computed from the round history, never stored.
+- **Undo.** *Menu*, then *Undo last round* (*Undo* in Whist), takes back
+  the last scores, also once the game is over. After *End game*, *Undo*
+  reopens the game with every round kept. Totals are computed from the
+  round history, never stored.
 - **Whist.** Setup switch. Guess tricks, then tap who hit their guess
   (nobody is allowed). Exact hit scores guess+10, a miss is 0. Guesses
   must not add up to the number of tricks (dealer guesses last). Hands

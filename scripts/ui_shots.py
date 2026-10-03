@@ -49,8 +49,9 @@ CLICK = {
     "menu": (0.17, 0.963),
     "add_round": (0.62, 0.963),
     "new_game": (0.62, 0.963),
-    "menu_new_game": (0.50, 0.82),
-    "past_games": (0.50, 0.863),
+    "menu_new_game": (0.50, 0.865),
+    # Past games is only in the game-over menu (Undo, Back to setup, Past games).
+    "past_games": (0.50, 0.965),
     "history_row": (0.50, 0.12),
 }
 
@@ -132,8 +133,8 @@ SHOTS = (
     Shot("add-round", "scoreboard_3p", ("add_round",)),
     Shot("menu", "scoreboard_3p", ("menu",)),
     Shot("rematch-confirm", "scoreboard_3p", ("menu", "menu_new_game")),
-    Shot("history", "scoreboard_3p", ("menu", "past_games")),
-    Shot("history-sheet", "scoreboard_3p", ("menu", "past_games", "history_row")),
+    Shot("history", "standings", ("menu", "past_games")),
+    Shot("history-sheet", "standings", ("menu", "past_games", "history_row")),
     Shot("standings", "standings", ()),
 )
 
