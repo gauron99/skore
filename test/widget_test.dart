@@ -1332,4 +1332,40 @@ void main() {
     expect(find.text('Ana'), findsWidgets);
     expect(find.text('9'), findsWidgets);
   });
+
+  testWidgets('clearing the round limit turns countdown off', (tester) async {
+    bool countdownOn() => tester
+        .widget<SwitchListTile>(
+          find.widgetWithText(SwitchListTile, 'Count rounds down'),
+        )
+        .value;
+
+    await pumpApp(tester);
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Ana');
+    await tester.enterText(fields.at(1), 'Ben');
+    await scrollTo(tester, find.text('Number of rounds (optional)'));
+    final limit = find.widgetWithText(
+      TextField,
+      'Number of rounds (optional)',
+    );
+    await tester.enterText(limit, '8');
+    await scrollTo(tester, find.text('Count rounds down'));
+    await tester.tap(find.text('Count rounds down'));
+    await tester.pumpAndSettle();
+    expect(countdownOn(), isTrue);
+
+    await tester.enterText(limit, '');
+    await tester.pump();
+    expect(countdownOn(), isFalse);
+
+    await tester.enterText(limit, '4');
+    await tester.pump();
+    expect(countdownOn(), isFalse);
+
+    await scrollTo(tester, find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+    expect(find.text('Round 1 of 4'), findsOneWidget);
+  });
 }

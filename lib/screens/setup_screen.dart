@@ -49,7 +49,11 @@ class _SetupScreenState extends State<SetupScreen> {
     _fillSeats();
     // The countdown switch only applies to fixed-length games; re-render as
     // the round limit is typed so its enabled state tracks the field.
-    _roundLimit.addListener(() => setState(() {}));
+    _roundLimit.addListener(() {
+      setState(() {
+        if (_roundLimit.text.trim().isEmpty) _countDown = false;
+      });
+    });
   }
 
   @override
