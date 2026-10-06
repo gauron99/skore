@@ -314,6 +314,21 @@ class Game {
     rounds.add(List.of(scores));
   }
 
+  /// Replaces one played round. Totals and [isOver] follow [rounds], so a
+  /// game that ended on the score target reopens when the new totals are
+  /// under it. A manual end stays ended.
+  void replaceRound(int index, List<int> scores) {
+    if (index < 0 || index >= rounds.length) {
+      throw RangeError.index(index, rounds, 'index');
+    }
+    if (scores.length != players.length) {
+      throw ArgumentError(
+        'expected ${players.length} scores, got ${scores.length}',
+      );
+    }
+    rounds[index] = List.of(scores);
+  }
+
   /// Takes back the last step. A manually ended game only reopens, with
   /// every round kept. Otherwise the most recent round is dropped, which
   /// also reopens a game that ended on its own.

@@ -7,9 +7,12 @@ import 'pinned_first_row.dart';
 /// the sums. Used on final standings and in history. The names row stays
 /// in view while a long sheet scrolls.
 class PaperScoreSheet extends StatelessWidget {
-  const PaperScoreSheet({super.key, required this.game});
+  const PaperScoreSheet({super.key, required this.game, this.onEditRound});
 
   final Game game;
+
+  /// When set, a tap on a score opens that round for editing.
+  final Future<void> Function(int roundIndex)? onEditRound;
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +24,17 @@ class PaperScoreSheet extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Center(child: child),
     );
+
+    Widget scoreCell(int round, int score) {
+      final text = cell(Text('$score'));
+      final edit = onEditRound;
+      if (edit == null) return text;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => edit(round),
+        child: text,
+      );
+    }
 
     // Between Whist stacks: heavier than the grid, lighter than the double
     // rule above the sums.
@@ -66,7 +80,7 @@ class PaperScoreSheet extends StatelessWidget {
               decoration: game.startsWhistStack(r) ? stackLine : null,
               children: [
                 cell(Text('R${game.roundNumber(r)}')),
-                for (final score in game.rounds[r]) cell(Text('$score')),
+                for (final score in game.rounds[r]) scoreCell(r, score),
               ],
             ),
           // Double line under the last round, like on a paper score sheet.

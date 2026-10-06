@@ -10,6 +10,7 @@ class RoundEntryDialog extends StatefulWidget {
     required this.players,
     required this.roundNumber,
     this.initialTexts,
+    this.seeScores = true,
   });
 
   final List<String> players;
@@ -17,6 +18,10 @@ class RoundEntryDialog extends StatefulWidget {
 
   /// Field text, restored after hiding the popup to see scores.
   final List<String>? initialTexts;
+
+  /// See scores hides the dialog and returns the field text. Off when the
+  /// dialog is editing a round already on the sheet.
+  final bool seeScores;
 
   @override
   State<RoundEntryDialog> createState() => _RoundEntryDialogState();
@@ -66,55 +71,58 @@ class _RoundEntryDialogState extends State<RoundEntryDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _seeScores();
-      },
-      child: AlertDialog(
-        title: Text('Round ${widget.roundNumber} scores'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < widget.players.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: TextField(
-                    controller: _scores[i],
-                    autofocus: i == 0,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      signed: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: widget.players[i],
-                      hintText: '0',
-                      border: const OutlineInputBorder(),
-                      errorText: _showErrors && _parse(_scores[i].text) == null
-                          ? 'Enter a number'
-                          : null,
-                    ),
+    final dialog = AlertDialog(
+      title: Text('Round ${widget.roundNumber} scores'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < widget.players.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TextField(
+                  controller: _scores[i],
+                  autofocus: i == 0,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    signed: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: widget.players[i],
+                    hintText: '0',
+                    border: const OutlineInputBorder(),
+                    errorText: _showErrors && _parse(_scores[i].text) == null
+                        ? 'Enter a number'
+                        : null,
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
-        actions: [
+      ),
+      actions: [
+        if (widget.seeScores)
           TextButton.icon(
             onPressed: _seeScores,
             icon: const Icon(Icons.expand_more),
             label: const Text('See scores'),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(onPressed: _submit, child: const Text('OK')),
-        ],
-      ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('OK')),
+      ],
+    );
+    if (!widget.seeScores) return dialog;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _seeScores();
+      },
+      child: dialog,
     );
   }
 }

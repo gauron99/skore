@@ -169,6 +169,22 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     setState(() {});
   }
 
+  Future<void> _editRound(int index) async {
+    final existing = game.rounds[index];
+    final result = await showDialog<Object>(
+      context: context,
+      builder: (context) => RoundEntryDialog(
+        players: game.players,
+        roundNumber: game.roundNumber(index),
+        initialTexts: [for (final score in existing) '$score'],
+        seeScores: false,
+      ),
+    );
+    if (!mounted || result is! List<int>) return;
+    setState(() => game.replaceRound(index, result));
+    await widget.onPersist();
+  }
+
   Future<void> _undoLastRound() async {
     final roundsBefore = game.rounds.length;
     final bidsBefore = game.whistBids;
@@ -668,7 +684,13 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                         children: [
                           cell(Text('R${game.roundNumber(r)}')),
                           for (var i = 0; i < game.players.length; i++)
-                            cell(Center(child: Text('${game.rounds[r][i]}'))),
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _editRound(r),
+                              child: cell(
+                                Center(child: Text('${game.rounds[r][i]}')),
+                              ),
+                            ),
                         ],
                       ),
                     TableRow(
@@ -715,7 +737,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: PaperScoreSheet(game: game),
+                child: PaperScoreSheet(game: game, onEditRound: _editRound),
               ),
             ),
           ),

@@ -385,6 +385,17 @@ void main() {
     expect(() => game.addRound([1]), throwsArgumentError);
   });
 
+  test('replacing a round updates totals and can reopen a score target', () {
+    final game = Game(players: ['A', 'B'], targetScore: 10)
+      ..addRound([4, 1])
+      ..addRound([6, 0]);
+    expect(game.isOver, isTrue);
+    game.replaceRound(0, [1, 1]);
+    expect(game.rounds.first, [1, 1]);
+    expect(game.totals, [7, 1]);
+    expect(game.isOver, isFalse);
+  });
+
   test('standings sort by total, highest first, ties in seating order', () {
     final game = Game(players: ['A', 'B', 'C'])..addRound([3, 9, 3]);
     expect(game.standings, [1, 0, 2]);

@@ -1458,6 +1458,57 @@ void main() {
     );
   });
 
+  testWidgets('tapping a score opens that round and updates the sums', (
+    tester,
+  ) async {
+    final game = Game(players: ['Ana', 'Ben'])
+      ..addRound([10, 7])
+      ..addRound([1, 1]);
+    await tester.pumpWidget(scoreboardApp(game));
+    await tester.tap(find.text('10'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Round 1 scores'), findsOneWidget);
+    expect(find.text('See scores'), findsNothing);
+    expect(
+      tester
+          .widget<TextField>(find.widgetWithText(TextField, 'Ana'))
+          .controller!
+          .text,
+      '10',
+    );
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '4');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(game.rounds.first, [4, 7]);
+    expect(game.totals, [5, 8]);
+    expect(find.text('5'), findsWidgets);
+    expect(find.text('8'), findsWidgets);
+  });
+
+  testWidgets('editing under the score target reopens the game', (
+    tester,
+  ) async {
+    final game = Game(players: ['Ana', 'Ben'], targetScore: 10)
+      ..addRound([4, 1])
+      ..addRound([6, 0]);
+    await tester.pumpWidget(scoreboardApp(game));
+    await tester.pumpAndSettle();
+    expect(game.isOver, isTrue);
+
+    await tester.tap(find.text('6'));
+    await tester.pumpAndSettle();
+    expect(find.text('Round 2 scores'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '3');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(game.isOver, isFalse);
+    expect(game.totals, [7, 1]);
+    expect(find.text('Add round'), findsOneWidget);
+  });
+
   testWidgets('a tie for the lead is 1st and 1st on the podium', (
     tester,
   ) async {
