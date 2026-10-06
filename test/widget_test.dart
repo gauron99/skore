@@ -739,26 +739,43 @@ void main() {
     expect(find.text('D'), findsNothing);
   });
 
-  testWidgets('running menu: Undo, End game, New game, Back to setup', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      scoreboardApp(Game(players: ['Ana', 'Ben'])..addRound([1, 2])),
-    );
-    await tester.tap(find.text('Menu'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'running menu: Undo, End game, New game, Back to setup, Past games',
+    (tester) async {
+      var pastGames = 0;
+      await tester.pumpWidget(
+        scoreboardApp(
+          Game(players: ['Ana', 'Ben'])..addRound([1, 2]),
+          onShowHistory: () => pastGames++,
+        ),
+      );
+      await tester.tap(find.text('Menu'));
+      await tester.pumpAndSettle();
 
-    expect(menuTitles(tester), [
-      'Undo last round',
-      'End game',
-      'New game',
-      'Back to setup',
-    ]);
-    expect(find.text('Show who won'), findsOneWidget);
-    expect(find.text('Same players and rules'), findsOneWidget);
-    expect(find.text('Change players or rules'), findsOneWidget);
-    expect(find.text('Past games'), findsNothing);
-  });
+      expect(menuTitles(tester), [
+        'Undo last round',
+        'End game',
+        'New game',
+        'Back to setup',
+        'Past games',
+      ]);
+      expect(find.text('Show who won'), findsOneWidget);
+      expect(find.text('Same players and rules'), findsOneWidget);
+      expect(find.text('Change players or rules'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Past games'),
+        40,
+        scrollable: find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.tap(find.text('Past games'));
+      await tester.pumpAndSettle();
+      expect(pastGames, 1);
+    },
+  );
 
   testWidgets('game-over menu: Undo, Back to setup (no confirm), Past games', (
     tester,

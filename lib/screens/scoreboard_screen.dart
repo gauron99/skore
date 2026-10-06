@@ -292,12 +292,11 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
                   // Nothing is lost once the game is over.
                   onTap: () => close(() => _changeSetup(confirm: !over)),
                 ),
-                if (over)
-                  ListTile(
-                    leading: const Icon(Icons.history),
-                    title: const Text('Past games'),
-                    onTap: () => close(widget.onShowHistory),
-                  ),
+                ListTile(
+                  leading: const Icon(Icons.history),
+                  title: const Text('Past games'),
+                  onTap: () => close(widget.onShowHistory),
+                ),
               ],
             ),
           ),
