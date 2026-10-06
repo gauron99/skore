@@ -44,7 +44,7 @@ $(SHOTS_VENV)/.installed: scripts/ui_shots_requirements.txt
 	touch $(SHOTS_VENV)/.installed
 
 .PHONY: ship
-ship: ## Push REV to main (app changes make a release). DRY_RUN=1 only checks
+ship: ## Push to main. REV= names the change; default is @, else @-, if non-empty and described. DRY_RUN=1 checks
 	@FLUTTER="$(FLUTTER)" REV="$(REV)" DRY_RUN="$(DRY_RUN)" scripts/ship.sh
 
 .PHONY: clean

@@ -2,12 +2,14 @@
 # Ship a change: move main forward to it and push. A push to main is a
 # release when it changes the app (on.push.paths in release.yml).
 #
-#   make ship REV=<change>             check, test, push
+#   make ship                          @ if it has a diff and a description,
+#                                      otherwise @- on those same terms
+#   make ship REV=<change>             check, test, push that revision
 #   make ship REV=<change> DRY_RUN=1   check and test, print the push
 #
-# Run from the repo root with the working copy on REV (harness files such as
-# CLAUDE.local.md may sit in a change on top). FLUTTER names the flutter
-# binary; the Makefile passes its own.
+# Run from the repo root with the working copy on the shipped change
+# (harness files such as CLAUDE.local.md may sit in a change on top).
+# FLUTTER names the flutter binary; the Makefile passes its own.
 
 set -euo pipefail
 
@@ -18,6 +20,7 @@ DRY_RUN="${DRY_RUN:-}"
 # Local-only files that never ship (paths from the repo root).
 HARNESS='^(CLAUDE\.local\.md$|\.claude/|screenshots/|\.tools/)'
 LINE='"  " ++ change_id.short() ++ " " ++ if(description, description.first_line(), "(no description)") ++ "\n"'
+STATE='"  " ++ change_id.short() ++ " " ++ if(self.empty(), "empty", "non-empty") ++ ", " ++ if(description, description.first_line(), "(no description)") ++ "\n"'
 
 die() {
   echo "ship: $*" >&2
@@ -33,17 +36,33 @@ changes() {
   jj log --no-graph -T "$LINE" -r "$1"
 }
 
+# Change id when $1 is non-empty and described. Empty output otherwise.
+ready_rev() {
+  jj log --no-graph -T 'change_id.short() ++ "\n"' \
+    -r "$1 & ~empty() & ~description(exact:\"\")" 2>/dev/null || true
+}
+
+# REV=<change> is that revision. With no REV, @ ships only when it has a
+# diff and a description; otherwise @- must meet the same bar.
+if [ -z "$REV" ]; then
+  if [ -n "$(ready_rev @)" ]; then
+    REV=@
+  elif [ -n "$(ready_rev @-)" ]; then
+    REV=@-
+  else
+    {
+      echo "ship: no REV given, and neither @ nor @- is non-empty and described."
+      jj log --no-graph -T "$STATE" -r @ || true
+      jj log --no-graph -T "$STATE" -r @- || true
+      echo "Name one with: make ship REV=<change>"
+    } >&2
+    exit 1
+  fi
+  echo "No REV given. Using $REV ($(jj log --no-graph -T 'change_id.short() ++ " " ++ description.first_line()' -r "$REV"))."
+fi
+
 echo "Fetching origin ..."
 jj git fetch
-
-if [ -z "$REV" ]; then
-  {
-    echo "ship: name the change to ship: make ship REV=<change>"
-    echo "Described changes on top of main@origin:"
-    changes '(main@origin:: ~ main@origin) & ~description(exact:"")'
-  } >&2
-  exit 1
-fi
 
 commits="$(jj log --no-graph -T 'commit_id ++ "\n"' -r "$REV" 2>&1)" ||
   die "REV=$REV is not a revision: $commits"

@@ -48,7 +48,8 @@ Flutter must be on your PATH, or put an SDK (or a symlink to one) at
     make test           # unit + widget tests
     make shots          # named Linux UI screenshots (needs DISPLAY)
     make apk            # debug APK (needs JDK 17 + Android SDK)
-    make ship REV=<change>  # push a change to main (see APK below)
+    make ship                # push @, or @- if @ is empty or undescribed
+    make ship REV=<change>   # push that change to main (see APK below)
     make clean          # drop build outputs
 
 ## APK
@@ -59,11 +60,13 @@ phone's browser, download, and install (sideloading must be allowed). Each
 release is one signed APK for phones (arm64), about 20MB, same shape as
 Hana's installable file. Not a zip of per-CPU APKs.
 
-Ship with `make ship REV=<change>` (`DRY_RUN=1` checks and tests without
-pushing). It fetches, checks that the change sits on top of `main`, is
-described, has no conflicts or local-only files and is checked out, runs
-analyze and tests, says whether the push makes a release, then moves
-`main` to it and pushes.
+Ship with `make ship` (`DRY_RUN=1` checks and tests without pushing).
+With no `REV`, it ships `@` when that change is non-empty and described,
+and otherwise `@-` on those same terms. If neither qualifies, it stops.
+`REV=<change>` ships that revision instead. It fetches, checks that the
+change sits on top of `main`, is described, has no conflicts or
+local-only files and is checked out, runs analyze and tests, says
+whether the push makes a release, then moves `main` to it and pushes.
 
 Every push to `main` that changes the app (`lib/`, `android/`, `assets/`,
 `pubspec.*`) is a release. The Release APK workflow analyzes and tests
