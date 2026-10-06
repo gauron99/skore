@@ -1368,4 +1368,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Round 1 of 4'), findsOneWidget);
   });
+
+  testWidgets('a tie for the lead is 1st and 1st on the podium', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      scoreboardApp(
+        Game(players: ['Ana', 'Ben', 'Cara', 'Dana'])..addRound([5, 5, 3, 1]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1st'), findsNWidgets(2));
+    expect(find.text('3rd'), findsOneWidget);
+    expect(find.text('2nd'), findsNothing);
+    expect(find.byIcon(Icons.emoji_events), findsNWidgets(2));
+  });
 }

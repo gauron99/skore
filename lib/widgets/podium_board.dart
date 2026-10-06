@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../data/game.dart';
 import 'medals.dart';
 
-/// Live 1st / 2nd / 3rd as a small three-step stand for tables of 4+ players.
+/// Live top three as a small three-step stand for tables of 4+ players.
 ///
-/// 2nd on the left, 1st tall in the middle, 3rd on the right. Place is
-/// [Game.standings] (highest points, or lowest when [Game.lowestWins]).
+/// Second-best on the left, best tall in the middle, next on the right.
+/// Each label is that player's [Game.places], so a tie for the lead reads
+/// 1st and 1st, and the next player reads 3rd. Every 1st wears the crown.
 class PodiumBoard extends StatelessWidget {
   const PodiumBoard({super.key, required this.game});
 
@@ -16,6 +17,7 @@ class PodiumBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final order = game.standings;
     final totals = game.totals;
+    final places = game.places;
     final first = order[0];
     final second = order[1];
     final third = order[2];
@@ -30,34 +32,36 @@ class PodiumBoard extends StatelessWidget {
               Expanded(
                 flex: 3,
                 child: _Step(
-                  place: '2nd',
+                  place: _placeLabel(places[second]),
                   name: game.players[second],
                   total: totals[second],
                   color: Medal.silver,
                   standHeight: 64,
+                  crowned: places[second] == 1,
                 ),
               ),
               const SizedBox(width: 5),
               Expanded(
                 flex: 4,
                 child: _Step(
-                  place: '1st',
+                  place: _placeLabel(places[first]),
                   name: game.players[first],
                   total: totals[first],
                   color: Medal.gold,
                   standHeight: 96,
-                  crowned: true,
+                  crowned: places[first] == 1,
                 ),
               ),
               const SizedBox(width: 5),
               Expanded(
                 flex: 3,
                 child: _Step(
-                  place: '3rd',
+                  place: _placeLabel(places[third]),
                   name: game.players[third],
                   total: totals[third],
                   color: Medal.bronze,
                   standHeight: 48,
+                  crowned: places[third] == 1,
                 ),
               ),
             ],
@@ -74,6 +78,16 @@ class PodiumBoard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _placeLabel(int place) {
+  final teen = place % 100;
+  if (teen >= 11 && teen <= 13) return '${place}th';
+  final last = place % 10;
+  if (last == 1) return '${place}st';
+  if (last == 2) return '${place}nd';
+  if (last == 3) return '${place}rd';
+  return '${place}th';
 }
 
 class _Step extends StatelessWidget {
