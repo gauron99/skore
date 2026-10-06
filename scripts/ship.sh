@@ -2,8 +2,8 @@
 # Ship a change: move main forward to it and push. A push to main is a
 # release when it changes the app (on.push.paths in release.yml).
 #
-#   make ship                          @ if it has a diff and a description,
-#                                      otherwise @- on those same terms
+#   make ship                          described non-empty @, or @- when @
+#                                      is empty. An undescribed @ fails.
 #   make ship REV=<change>             check, test, push that revision
 #   make ship REV=<change> DRY_RUN=1   check and test, print the push
 #
@@ -42,11 +42,22 @@ ready_rev() {
     -r "$1 & ~empty() & ~description(exact:\"\")" 2>/dev/null || true
 }
 
-# REV=<change> is that revision. With no REV, @ ships only when it has a
-# diff and a description; otherwise @- must meet the same bar.
+# REV=<change> is that revision. With no REV, a described non-empty @
+# ships. If @ has changes but no description, stop: that work may belong
+# in the stack and only needs a description, so @- is not used. An empty
+# @ ships @- when that change is non-empty and described.
 if [ -z "$REV" ]; then
   if [ -n "$(ready_rev @)" ]; then
     REV=@
+  elif [ -n "$(jj log --no-graph -T 'change_id.short()' -r '@ & ~empty()' 2>/dev/null || true)" ]; then
+    {
+      echo "ship: @ has changes and no description, so it was not shipped."
+      echo "@- was not used. This change may belong in the stack and only needs a description."
+      jj diff --from @- --to @ --name-only 2>/dev/null | indent || true
+      echo "Describe it: jj describe"
+      echo "To ship another revision: make ship REV=<change>"
+    } >&2
+    exit 1
   elif [ -n "$(ready_rev @-)" ]; then
     REV=@-
   else
