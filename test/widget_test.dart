@@ -1524,4 +1524,29 @@ void main() {
     expect(find.text('2nd'), findsNothing);
     expect(find.byIcon(Icons.emoji_events), findsNWidgets(2));
   });
+
+  testWidgets('a saved game that cannot be opened is left on disk', (
+    tester,
+  ) async {
+    const raw =
+        '{"current":{"players":["Zed","Quinn"],"rounds":[[8,"x"]]},'
+        '"history":[]}';
+    SharedPreferences.setMockInitialValues({'skore.data': raw});
+    await pumpApp(tester);
+
+    expect(
+      find.text('The saved game could not be opened. It was left on disk.'),
+      findsOneWidget,
+    );
+    expect(find.text('Start game'), findsNothing);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('skore.data'), raw);
+
+    await tester.tap(find.text('Delete saved data'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Players'), findsOneWidget);
+    expect(prefs.getString('skore.data'), isNull);
+  });
 }

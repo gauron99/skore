@@ -369,27 +369,74 @@ class Game {
     'startedAt': startedAt.toIso8601String(),
   };
 
-  factory Game.fromJson(Map<String, dynamic> json) => Game(
-    players: (json['players'] as List).cast<String>(),
-    rounds: [
-      for (final round in json['rounds'] as List) (round as List).cast<int>(),
-    ],
-    targetRounds: json['targetRounds'] as int?,
-    targetScore: json['targetScore'] as int?,
-    countDown: json['countDown'] as bool? ?? false,
-    lowestWins: json['lowestWins'] as bool? ?? false,
-    endedManually: json['endedManually'] as bool? ?? false,
-    whist: json['whist'] as bool? ?? false,
-    whistMaxHand: json['whistMaxHand'] as int? ?? 8,
-    whistCycles: json['whistCycles'] as int?,
-    whistFirstDealer: _seatOrZero(
-      json['whistFirstDealer'],
-      (json['players'] as List).length,
-    ),
-    whistBids: (json['whistBids'] as List?)?.cast<int>(),
-    whistHits: (json['whistHits'] as List?)?.map((hit) => hit == true).toList(),
-    startedAt: json['startedAt'] == null
-        ? null
-        : DateTime.parse(json['startedAt'] as String),
-  );
+  factory Game.fromJson(Map<String, dynamic> json) {
+    final players = _stringList(json['players']);
+    return Game(
+      players: players,
+      rounds: _scoreRows(json['rounds'], players.length),
+      targetRounds: json['targetRounds'] as int?,
+      targetScore: json['targetScore'] as int?,
+      countDown: json['countDown'] as bool? ?? false,
+      lowestWins: json['lowestWins'] as bool? ?? false,
+      endedManually: json['endedManually'] as bool? ?? false,
+      whist: json['whist'] as bool? ?? false,
+      whistMaxHand: json['whistMaxHand'] as int? ?? 8,
+      whistCycles: json['whistCycles'] as int?,
+      whistFirstDealer: _seatOrZero(json['whistFirstDealer'], players.length),
+      whistBids: _intListOrNull(json['whistBids']),
+      whistHits: _hitsOrNull(json['whistHits']),
+      startedAt: _startedAt(json['startedAt']),
+    );
+  }
+}
+
+List<String> _stringList(Object? raw) {
+  if (raw is! List) throw const FormatException('players');
+  return [
+    for (final item in raw)
+      if (item is String) item else throw const FormatException('players'),
+  ];
+}
+
+/// One score per player. A short row is padded with 0 and extras are dropped
+/// so [Game.totals] never reads past the row.
+List<List<int>> _scoreRows(Object? raw, int playerCount) {
+  if (raw is! List) throw const FormatException('rounds');
+  final rounds = <List<int>>[];
+  for (final round in raw) {
+    if (round is! List) throw const FormatException('round');
+    final scores = <int>[];
+    for (final cell in round) {
+      if (cell is! int) throw const FormatException('score');
+      scores.add(cell);
+    }
+    if (scores.length < playerCount) {
+      scores.addAll(List<int>.filled(playerCount - scores.length, 0));
+    } else if (scores.length > playerCount) {
+      scores.removeRange(playerCount, scores.length);
+    }
+    rounds.add(scores);
+  }
+  return rounds;
+}
+
+List<int>? _intListOrNull(Object? raw) {
+  if (raw == null) return null;
+  if (raw is! List) throw const FormatException('ints');
+  return [
+    for (final cell in raw)
+      if (cell is int) cell else throw const FormatException('ints'),
+  ];
+}
+
+List<bool>? _hitsOrNull(Object? raw) {
+  if (raw == null) return null;
+  if (raw is! List) throw const FormatException('whistHits');
+  return [for (final hit in raw) hit == true];
+}
+
+DateTime? _startedAt(Object? raw) {
+  if (raw == null) return null;
+  if (raw is! String) throw const FormatException('startedAt');
+  return DateTime.parse(raw);
 }

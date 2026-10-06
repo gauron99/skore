@@ -37,13 +37,28 @@ class AppData {
     'history': [for (final game in history) game.toJson()],
   };
 
-  factory AppData.fromJson(Map<String, dynamic> json) => AppData(
-    current: json['current'] == null
-        ? null
-        : Game.fromJson(json['current'] as Map<String, dynamic>),
-    history: [
-      for (final game in (json['history'] as List?) ?? const [])
-        Game.fromJson(game as Map<String, dynamic>),
-    ],
-  );
+  factory AppData.fromJson(Map<String, dynamic> json) {
+    final currentRaw = json['current'];
+    final Game? current;
+    if (currentRaw == null) {
+      current = null;
+    } else if (currentRaw is Map) {
+      current = Game.fromJson(Map<String, dynamic>.from(currentRaw));
+    } else {
+      throw const FormatException('current');
+    }
+    final history = <Game>[];
+    final historyRaw = json['history'];
+    if (historyRaw is List) {
+      for (final entry in historyRaw) {
+        if (entry is! Map) continue;
+        try {
+          history.add(Game.fromJson(Map<String, dynamic>.from(entry)));
+        } catch (_) {
+          // One broken past game must not hide the game on the table.
+        }
+      }
+    }
+    return AppData(current: current, history: history);
+  }
 }

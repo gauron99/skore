@@ -396,6 +396,31 @@ void main() {
     expect(game.isOver, isFalse);
   });
 
+  test('a short saved round is padded before totals are read', () {
+    final game = Game.fromJson({
+      'players': ['A', 'B'],
+      'rounds': [
+        [8],
+      ],
+    });
+    expect(game.rounds, [
+      [8, 0],
+    ]);
+    expect(game.totals, [8, 0]);
+  });
+
+  test('a non-integer score rejects the game', () {
+    expect(
+      () => Game.fromJson({
+        'players': ['A', 'B'],
+        'rounds': [
+          [8, 'x'],
+        ],
+      }),
+      throwsFormatException,
+    );
+  });
+
   test('standings sort by total, highest first, ties in seating order', () {
     final game = Game(players: ['A', 'B', 'C'])..addRound([3, 9, 3]);
     expect(game.standings, [1, 0, 2]);

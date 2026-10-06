@@ -80,10 +80,10 @@ void main() {
         AppData(current: Game(players: ['A', 'B'])..addRound([1, 2])),
       );
       final loaded = await GameStore.load();
-      expect(loaded.current!.rounds, [
+      expect(loaded.data!.current!.rounds, [
         [1, 2],
       ]);
-      expect(loaded.history, isEmpty);
+      expect(loaded.data!.history, isEmpty);
     });
 
     test('legacy single-game blobs are migrated and cleaned up', () async {
@@ -93,10 +93,10 @@ void main() {
             '"endedManually":false}',
       });
       final loaded = await GameStore.load();
-      expect(loaded.current!.players, ['Ana']);
-      expect(loaded.history, isEmpty);
+      expect(loaded.data!.current!.players, ['Ana']);
+      expect(loaded.data!.history, isEmpty);
 
-      await GameStore.save(loaded);
+      await GameStore.save(loaded.data!);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('skore.game'), isNull);
       expect(prefs.getString('skore.data'), contains('"Ana"'));
@@ -107,7 +107,52 @@ void main() {
       await GameStore.deleteAll();
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('skore.data'), isNull);
-      expect((await GameStore.load()).current, isNull);
+      expect((await GameStore.load()).data!.current, isNull);
+    });
+
+    test('a broken past game is skipped and the current game stays', () async {
+      final raw = jsonEncode({
+        'current': {
+          'players': ['Zed', 'Quinn'],
+          'rounds': [
+            [8, 1],
+          ],
+        },
+        'history': [
+          null,
+          {
+            'players': ['Ana'],
+            'rounds': [
+              [4],
+            ],
+            'endedManually': true,
+          },
+          {
+            'players': ['X'],
+            'rounds': 'no',
+          },
+        ],
+      });
+      SharedPreferences.setMockInitialValues({'skore.data': raw});
+      final loaded = await GameStore.load();
+      expect(loaded.blocked, isFalse);
+      expect(loaded.data!.current!.players, ['Zed', 'Quinn']);
+      expect(loaded.data!.current!.totals, [8, 1]);
+      expect(loaded.data!.history.single.players, ['Ana']);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('skore.data'), raw);
+    });
+
+    test('an unreadable current game is left on disk', () async {
+      const raw =
+          '{"current":{"players":["Zed","Quinn"],"rounds":[[8,"x"]]},'
+          '"history":[]}';
+      SharedPreferences.setMockInitialValues({'skore.data': raw});
+      final loaded = await GameStore.load();
+      expect(loaded.blocked, isTrue);
+      expect(loaded.data, isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('skore.data'), raw);
     });
   });
 }

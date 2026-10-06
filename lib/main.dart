@@ -55,13 +55,17 @@ class HomeGate extends StatefulWidget {
 
 class _HomeGateState extends State<HomeGate> {
   AppData? _data;
+  bool _savedGameBlocked = false;
 
   @override
   void initState() {
     super.initState();
-    GameStore.load().then((data) {
+    GameStore.load().then((loaded) {
       if (!mounted) return;
-      setState(() => _data = data);
+      setState(() {
+        _savedGameBlocked = loaded.blocked;
+        _data = loaded.data;
+      });
     });
   }
 
@@ -90,8 +94,32 @@ class _HomeGateState extends State<HomeGate> {
   }
 
   Future<void> _deleteAll() async {
-    setState(() => _data = AppData());
+    setState(() {
+      _savedGameBlocked = false;
+      _data = AppData();
+    });
     await GameStore.deleteAll();
+  }
+
+  Future<void> _discardBlockedSave() async {
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: const Text('Delete the saved game and start over?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+    if (answer != true || !mounted) return;
+    await _deleteAll();
   }
 
   void _showHistory() {
@@ -113,6 +141,7 @@ class _HomeGateState extends State<HomeGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (_savedGameBlocked) return _blockedSave();
     final data = _data;
     if (data == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -133,5 +162,30 @@ class _HomeGateState extends State<HomeGate> {
             onShowHistory: _showHistory,
             onPersist: _persist,
           );
+  }
+
+  Widget _blockedSave() {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Skóre'), centerTitle: true),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'The saved game could not be opened. It was left on disk.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _discardBlockedSave,
+                child: const Text('Delete saved data'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
