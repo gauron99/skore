@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:skore/data/app_data.dart';
 import 'package:skore/data/game.dart';
+import 'package:skore/data/game_store.dart';
 import 'package:skore/main.dart';
 import 'package:skore/screens/game_sheet_screen.dart';
 import 'package:skore/screens/scoreboard_screen.dart';
@@ -132,6 +133,7 @@ Future<void> scrollTo(WidgetTester tester, Finder finder) async {
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    GameStore.debugSetString = null;
   });
 
   testWidgets('Start game stays off until every player is named', (
@@ -1548,5 +1550,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Players'), findsOneWidget);
     expect(prefs.getString('skore.data'), isNull);
+  });
+
+  testWidgets('a failed save leaves the score on screen and says so', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await tester.enterText(find.byType(TextField).at(0), 'Ana');
+    await tester.enterText(find.byType(TextField).at(1), 'Ben');
+    await scrollTo(tester, find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    GameStore.debugSetString = (prefs, key, value) async => false;
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '10');
+    await tester.enterText(find.widgetWithText(TextField, 'Ben'), '7');
+    await tester.tap(find.text('OK'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('10'), findsWidgets);
+    expect(find.text('The last change was not saved.'), findsOneWidget);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('skore.data'), isNot(contains('[[10,7]]')));
+    await tester.pump(const Duration(seconds: 5));
   });
 }

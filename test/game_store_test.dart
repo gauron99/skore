@@ -12,6 +12,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    GameStore.debugSetString = null;
   });
 
   group('AppData', () {
@@ -153,6 +154,23 @@ void main() {
       expect(loaded.data, isNull);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('skore.data'), raw);
+    });
+
+    test('a failed write keeps the old blob and the legacy key', () async {
+      const legacy = '{"players":["Ana"],"rounds":[[7]]}';
+      const data = '{"current":null,"history":[]}';
+      SharedPreferences.setMockInitialValues({
+        'skore.game': legacy,
+        'skore.data': data,
+      });
+      GameStore.debugSetString = (prefs, key, value) async => false;
+      await expectLater(
+        GameStore.save(AppData(current: Game(players: ['Ben']))),
+        throwsA(isA<StateError>()),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('skore.game'), legacy);
+      expect(prefs.getString('skore.data'), data);
     });
   });
 }

@@ -71,8 +71,14 @@ class _HomeGateState extends State<HomeGate> {
 
   Future<void> _persist() async {
     final data = _data;
-    if (data != null) {
+    if (data == null) return;
+    try {
       await GameStore.save(data);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('The last change was not saved.')),
+      );
     }
   }
 

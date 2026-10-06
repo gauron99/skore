@@ -22,8 +22,17 @@ class GameStore {
   static const _key = 'skore.data';
 
   /// Pre-history format: just the current game. Migrated on load, removed
-  /// on the next save.
+  /// only after a later save lands.
   static const _legacyKey = 'skore.game';
+
+  /// Test hook. When set, [save] uses this instead of
+  /// [SharedPreferences.setString]. Return false to simulate a failed write.
+  static Future<bool> Function(
+    SharedPreferences prefs,
+    String key,
+    String value,
+  )?
+  debugSetString;
 
   static Future<GameLoad> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -63,7 +72,14 @@ class GameStore {
 
   static Future<void> save(AppData data) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(data.toJson()));
+    final payload = jsonEncode(data.toJson());
+    final write = debugSetString;
+    final stored = write != null
+        ? await write(prefs, _key, payload)
+        : await prefs.setString(_key, payload);
+    if (!stored) {
+      throw StateError('could not save the game');
+    }
     await prefs.remove(_legacyKey);
   }
 
