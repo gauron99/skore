@@ -228,11 +228,24 @@ void main() {
     });
 
     test('cannot mark every player as a hit', () {
-      final game = fresh()..lockBids([2, 1, 0]);
+      final game = fresh()..lockBids([1, 0, 0]);
       game.toggleWhistHit(0);
       game.toggleWhistHit(1);
       expect(() => game.toggleWhistHit(2), throwsStateError);
       expect(game.whistHits, [true, true, false]);
+    });
+
+    test('green guesses cannot add up to more tricks than the hand', () {
+      final game = fresh()..lockBids([2, 1, 0]);
+      game.finishWhistHand();
+      expect(game.whistHandCards, 1);
+      game.lockBids([1, 1, 0]);
+      game.toggleWhistHit(0);
+      expect(() => game.toggleWhistHit(1), throwsStateError);
+      expect(game.whistHits, [true, false, false]);
+      game.toggleWhistHit(2);
+      expect(game.whistHits, [true, false, true]);
+      expect(game.whistGreenGuesses, 1);
     });
 
     test('toggle can unmark a hit', () {

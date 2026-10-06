@@ -53,6 +53,17 @@ void main() {
       expect(identical(data.current, original), isFalse);
     });
 
+    test('discardCurrent drops the game and leaves history', () {
+      final kept = Game(players: ['A'])..addRound([4]);
+      final data = AppData(
+        current: Game(players: ['B', 'C'])..addRound([1, 2]),
+        history: [kept],
+      );
+      data.discardCurrent();
+      expect(data.current, isNull);
+      expect(data.history, [kept]);
+    });
+
     test('archiveCurrent without a game is a no-op', () {
       final data = AppData()..archiveCurrent();
       expect(data.history, isEmpty);
@@ -72,6 +83,37 @@ void main() {
       expect(copy.current!.players, ['A', 'B']);
       expect(copy.history.single.players, ['C']);
       expect(copy.history.single.totals, [9]);
+      expect(copy.samePerson, isEmpty);
+      expect(copy.displayNames, isEmpty);
+    });
+
+    test('samePerson round-trips and a bad entry is skipped', () {
+      final data =
+          AppData(
+              history: [
+                Game(players: ['Davca'])..addRound([1]),
+              ],
+            )
+            ..samePerson['Davca'] = 'David'
+            ..displayNames.add('Pat');
+      final copy = AppData.fromJson(
+        jsonDecode(jsonEncode(data.toJson())) as Map<String, dynamic>,
+      );
+      expect(copy.samePerson, {'Davca': 'David'});
+      expect(copy.displayNames, ['Pat']);
+
+      final old = AppData.fromJson({'current': null, 'history': []});
+      expect(old.samePerson, isEmpty);
+      expect(old.displayNames, isEmpty);
+
+      final messy = AppData.fromJson({
+        'current': null,
+        'history': [],
+        'samePerson': {'Davca': 'David', 'nope': 1, 'Ana': 'Ana', '': 'Ben'},
+        'displayNames': [' Dave ', 'Dave', '', 1, 'Pat', 'Pat'],
+      });
+      expect(messy.samePerson, {'Davca': 'David'});
+      expect(messy.displayNames, ['Dave', 'Pat']);
     });
   });
 

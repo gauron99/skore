@@ -8,6 +8,9 @@ import '../widgets/podium_board.dart';
 import '../widgets/round_entry_dialog.dart';
 import '../widgets/whist_bid_dialog.dart';
 
+/// What the End game dialog returns.
+enum _EndChoice { cancel, discard, save }
+
 /// The live game view: running totals with the leader crowned, the round
 /// history table, and round entry. Flips to final standings once the game
 /// is over.
@@ -17,6 +20,7 @@ class ScoreboardScreen extends StatefulWidget {
     required this.game,
     required this.onRematch,
     required this.onChangeSetup,
+    required this.onDiscard,
     required this.onShowHistory,
     required this.onPersist,
   });
@@ -28,6 +32,9 @@ class ScoreboardScreen extends StatefulWidget {
 
   /// Archive this game and return to the setup form.
   final VoidCallback onChangeSetup;
+
+  /// Drop this game. It is not added to past games.
+  final VoidCallback onDiscard;
 
   final VoidCallback onShowHistory;
 
@@ -112,13 +119,32 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
     setState(() {});
   }
 
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _notice;
+
+  /// One notice at a time. A tap while one is showing leaves that notice up.
+  void _showNotice(String message) {
+    if (_notice != null) return;
+    final controller = ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+    _notice = controller;
+    controller.closed.whenComplete(() {
+      if (!mounted || _notice != controller) return;
+      _notice = null;
+    });
+  }
+
   Future<void> _toggleHit(int player) async {
     if (!game.whistMarkingHits) return;
     if (game.whistWouldMarkEveryone(player)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Not everyone can have guessed correctly.'),
-        ),
+      _showNotice('Not everyone can have guessed correctly.');
+      return;
+    }
+    if (game.whistGreenWouldExceed(player)) {
+      final cards = game.whistHandCards;
+      final noun = cards == 1 ? 'card' : 'cards';
+      _showNotice(
+        'Those correct guesses add up to more than the $cards $noun in this hand.',
       );
       return;
     }
@@ -129,11 +155,7 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
   Future<void> _finishWhistHand() async {
     if (!game.whistReadyToFinish) return;
     if (game.whistEveryoneHit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Not everyone can have guessed correctly.'),
-        ),
-      );
+      _showNotice('Not everyone can have guessed correctly.');
       return;
     }
     setState(() => game.finishWhistHand());
@@ -199,10 +221,44 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
   }
 
   Future<void> _endGame() async {
-    final confirmed = await _confirm('End this game and show final standings?');
-    if (!confirmed) return;
-    setState(() => game.endedManually = true);
-    await widget.onPersist();
+    final choice = await showDialog<_EndChoice>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('End game'),
+        content: const Text(
+          'Save shows who won and keeps this game. '
+          'Don\'t save throws it away.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_EndChoice.cancel),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(context).pop(_EndChoice.discard),
+            child: const Text('Don\'t save'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(_EndChoice.save),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case _EndChoice.save:
+        setState(() => game.endedManually = true);
+        await widget.onPersist();
+      case _EndChoice.discard:
+        widget.onDiscard();
+      case _EndChoice.cancel:
+      case null:
+        return;
+    }
   }
 
   Future<void> _rematch({required bool confirm}) async {

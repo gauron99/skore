@@ -24,9 +24,20 @@ A simple score counter for card games, built with Flutter. Targets Android
   *New game* archives the last one and starts another with the same players
   and rules. *Menu*, then *Back to setup*, archives it too and opens the
   setup form filled in from it, to change players or rules.
-- **Past games.** History lists every archived game; a tap opens the paper
-  score sheet. Delete games one by one, or wipe everything with *Delete all
-  data*.
+- **Past games.** History lists every archived game and, above the list,
+  how often each person won. Every game starts included; uncheck one to
+  leave it out. Tap a name to choose what the summary shows. It starts
+  as the spelling used in the most games; type over it to choose your
+  own, then tick every spelling that counts as that name. *Add name*
+  puts another name on the card. One with no spellings yet stays there
+  until you link one or remove it. Until you link them, spellings stay
+  separate. A tie counts for each winner.
+  A tap opens the paper score sheet. *New game* and *Back to setup*
+  archive the game on the table,
+  and an unfinished one is stored as ended. *Menu*, then *End game*,
+  asks *Save* (keep it and show who won), *Don't save* (throw it away),
+  or *Cancel*. Delete games one by one, or wipe everything with
+  *Delete all data*.
 - **Undo.** *Menu*, then *Undo last round* (*Undo* in Whist), takes back
   the last scores, also once the game is over. After *End game*, *Undo*
   reopens the game with every round kept. Totals are computed from the

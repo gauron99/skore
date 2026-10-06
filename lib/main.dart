@@ -99,6 +99,12 @@ class _HomeGateState extends State<HomeGate> {
     await _persist();
   }
 
+  /// Leave the table without adding the game to past games.
+  Future<void> _discardCurrent() async {
+    setState(() => _data!.discardCurrent());
+    await _persist();
+  }
+
   Future<void> _deleteAll() async {
     setState(() {
       _savedGameBlocked = false;
@@ -165,6 +171,7 @@ class _HomeGateState extends State<HomeGate> {
             game: game,
             onRematch: _rematch,
             onChangeSetup: _archiveAndSetup,
+            onDiscard: _discardCurrent,
             onShowHistory: _showHistory,
             onPersist: _persist,
           );

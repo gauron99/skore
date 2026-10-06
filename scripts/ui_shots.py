@@ -60,7 +60,8 @@ CLICK = {
     "menu_new_game": (0.50, 0.865),
     # Past games is only in the game-over menu (Undo, Back to setup, Past games).
     "past_games": (0.50, 0.965),
-    "history_row": (0.50, 0.12),
+    # Below the wins card. Center of the row, clear of the checkbox.
+    "history_row": (0.50, 0.39),
 }
 
 STARTED = "2026-08-21T12:00:00.000"

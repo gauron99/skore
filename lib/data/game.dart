@@ -125,6 +125,25 @@ class Game {
         (i) => i == player || whistHit(i),
       ).every((hit) => hit);
 
+  /// Sum of the guesses marked as correct. Those players took that many tricks.
+  int get whistGreenGuesses {
+    final bids = whistBids;
+    if (bids == null) return 0;
+    var sum = 0;
+    for (var i = 0; i < players.length; i++) {
+      if (whistHits[i]) sum += bids[i];
+    }
+    return sum;
+  }
+
+  /// True if marking this player would claim more tricks than the hand has.
+  bool whistGreenWouldExceed(int player) {
+    if (whistHit(player)) return false;
+    final bids = whistBids;
+    if (bids == null) return false;
+    return whistGreenGuesses + bids[player] > whistHandCards;
+  }
+
   bool get canUndo =>
       endedManually ||
       (whist
@@ -281,6 +300,9 @@ class Game {
     }
     if (whistWouldMarkEveryone(player)) {
       throw StateError('not everyone can hit');
+    }
+    if (whistGreenWouldExceed(player)) {
+      throw StateError('green guesses exceed the hand');
     }
     whistHits[player] = !whistHits[player];
   }

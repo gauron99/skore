@@ -12,6 +12,7 @@ import 'package:skore/data/game.dart';
 import 'package:skore/data/game_store.dart';
 import 'package:skore/main.dart';
 import 'package:skore/screens/game_sheet_screen.dart';
+import 'package:skore/screens/history_screen.dart';
 import 'package:skore/screens/scoreboard_screen.dart';
 import 'package:skore/screens/setup_screen.dart';
 import 'package:skore/widgets/final_standings.dart';
@@ -27,12 +28,14 @@ Future<void> pumpApp(WidgetTester tester) async {
 Widget scoreboardApp(
   Game game, {
   VoidCallback? onChangeSetup,
+  VoidCallback? onDiscard,
   VoidCallback? onShowHistory,
 }) => MaterialApp(
   home: ScoreboardScreen(
     game: game,
     onRematch: () {},
     onChangeSetup: onChangeSetup ?? () {},
+    onDiscard: onDiscard ?? () {},
     onShowHistory: onShowHistory ?? () {},
     onPersist: () async {},
   ),
@@ -383,6 +386,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ana 5 · Ben 3'), findsOneWidget);
     expect(find.textContaining('winner: Ana'), findsOneWidget);
+    expect(find.text('Wins'), findsOneWidget);
 
     await tester.tap(find.text('Ana 5 · Ben 3'));
     await tester.pumpAndSettle();
@@ -404,6 +408,188 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('skore.data'), isNull);
+  });
+
+  testWidgets('past games summarize the games left checked', (tester) async {
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final older = Game(players: ['Ana', 'Ben'])..addRound([3, 1]);
+    final newer = Game(players: ['Davca', 'David'])..addRound([1, 1]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HistoryScreen(
+          data: AppData(history: [older, newer]),
+          onPersist: () async {},
+          onDeleteAll: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 games'), findsOneWidget);
+    expect(find.text('1 of 1'), findsNWidgets(3));
+    expect(find.text('0 of 1'), findsOneWidget);
+    expect(find.text('100%'), findsNWidgets(3));
+    expect(find.text('Add name'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.widgetWithText(ListTile, 'Davca 1 · David 1'),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 of 2 games'), findsOneWidget);
+    expect(find.text('Davca'), findsNothing);
+    expect(find.text('David'), findsNothing);
+    expect(find.text('Ana'), findsOneWidget);
+    expect(find.text('1 of 1'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('Use all games'), findsOneWidget);
+
+    await tester.tap(find.text('Use all games'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 games'), findsOneWidget);
+    expect(find.text('1 of 1'), findsNWidgets(3));
+  });
+
+  List<Game> davidTwice() => [
+    Game(players: ['Davca', 'Ben'])..addRound([2, 0]),
+    Game(players: ['David', 'Ben'])..addRound([3, 0]),
+    Game(players: ['David', 'Ben'])..addRound([4, 0]),
+  ];
+
+  String shownField(WidgetTester tester) =>
+      tester.widget<TextField>(find.byType(TextField)).controller!.text;
+
+  testWidgets('the summary name defaults to the spelling used most', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final data = AppData(history: davidTwice());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HistoryScreen(
+          data: data,
+          onPersist: () async {},
+          onDeleteAll: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Davca'));
+    await tester.pumpAndSettle();
+    expect(find.text('Shown in the summary'), findsOneWidget);
+    expect(find.text('Remove this name'), findsNothing);
+    expect(shownField(tester), 'Davca');
+
+    await tester.tap(find.byKey(const ValueKey('same-David')));
+    await tester.pumpAndSettle();
+
+    expect(shownField(tester), 'David');
+    expect(data.samePerson['Davca'], 'David');
+    expect(data.samePerson.containsKey('David'), isFalse);
+    expect(
+      tester.widget<Checkbox>(find.byKey(const ValueKey('same-David'))).value,
+      isTrue,
+    );
+    expect(
+      tester.widget<Checkbox>(find.byKey(const ValueKey('same-Davca'))).value,
+      isTrue,
+    );
+
+    await tester.enterText(find.byType(TextField), 'Dave');
+    await tester.pumpAndSettle();
+    expect(shownField(tester), 'Dave');
+    expect(data.samePerson['Davca'], 'Dave');
+    expect(data.samePerson['David'], 'Dave');
+
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pumpAndSettle();
+    expect(shownField(tester), 'David');
+    expect(data.samePerson['Davca'], 'David');
+    expect(data.samePerson.containsKey('David'), isFalse);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('David'), findsOneWidget);
+    expect(find.text('Davca'), findsOneWidget);
+    expect(find.text('3 of 3'), findsOneWidget);
+    expect(find.text('0 of 3'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+  });
+
+  testWidgets('several summary names can be added by hand', (tester) async {
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final data = AppData(history: davidTwice());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HistoryScreen(
+          data: data,
+          onPersist: () async {},
+          onDeleteAll: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ben'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove this name'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add name'));
+    await tester.pumpAndSettle();
+    expect(find.text('New name'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Dave');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('same-Davca')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('same-David')));
+    await tester.pumpAndSettle();
+    expect(shownField(tester), 'Dave');
+    expect(data.samePerson['Davca'], 'Dave');
+    expect(data.samePerson['David'], 'Dave');
+    expect(data.displayNames, isEmpty);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Davca, David'), findsOneWidget);
+
+    await tester.tap(find.text('Add name'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Pat');
+    await tester.pumpAndSettle();
+    expect(data.displayNames, ['Pat']);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('No spellings yet'), findsOneWidget);
+    expect(find.text('Pat'), findsOneWidget);
+
+    await tester.tap(find.text('Pat'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove this name'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pat'), findsNothing);
+    expect(find.text('No spellings yet'), findsNothing);
+    expect(data.displayNames, isEmpty);
+
+    expect(find.text('Dave'), findsOneWidget);
+    expect(find.text('Davca, David'), findsOneWidget);
+    expect(find.text('Pat'), findsNothing);
+    expect(find.text('3 of 3'), findsOneWidget);
+    expect(find.text('0 of 3'), findsOneWidget);
   });
 
   testWidgets('lowest-points-wins game crowns the lowest total', (
@@ -604,6 +790,7 @@ void main() {
           game: game,
           onRematch: () {},
           onChangeSetup: () {},
+          onDiscard: () {},
           onShowHistory: () {},
           onPersist: () async {},
         ),
@@ -631,6 +818,46 @@ void main() {
     expect(find.text('SUM'), findsOneWidget);
   });
 
+  testWidgets('whist: a second impossible tap does not stack another notice', (
+    tester,
+  ) async {
+    final game = Game(
+      players: ['Ana', 'Ben', 'Cara'],
+      whist: true,
+      whistMaxHand: 1,
+      whistCycles: 1,
+    )..lockBids([1, 1, 0]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoreboardScreen(
+          game: game,
+          onRematch: () {},
+          onChangeSetup: () {},
+          onDiscard: () {},
+          onShowHistory: () {},
+          onPersist: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    const message =
+        'Those correct guesses add up to more than the 1 card in this hand.';
+    await tester.tap(find.text('Ana').last);
+    await tester.pump();
+    await tester.tap(find.text('Ben').last);
+    await tester.pump();
+    await tester.tap(find.text('Ben').last);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(game.whistHits, [true, false, false]);
+    expect(find.text(message), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text(message), findsNothing);
+  });
+
   testWidgets('whist: See scores hides the popup; bottom bar restores drafts', (
     tester,
   ) async {
@@ -646,6 +873,7 @@ void main() {
           game: game,
           onRematch: () {},
           onChangeSetup: () {},
+          onDiscard: () {},
           onShowHistory: () {},
           onPersist: () async {},
         ),
@@ -683,6 +911,7 @@ void main() {
         game: game,
         onRematch: () {},
         onChangeSetup: () {},
+        onDiscard: () {},
         onShowHistory: () {},
         onPersist: () async {},
       ),
@@ -788,6 +1017,7 @@ void main() {
       scoreboardApp(
         Game(players: ['Ana', 'Ben'], targetRounds: 1)..addRound([5, 3]),
         onChangeSetup: () => backToSetup++,
+        onDiscard: () {},
         onShowHistory: () => pastGames++,
       ),
     );
@@ -811,6 +1041,46 @@ void main() {
     expect(backToSetup, 1);
   });
 
+  testWidgets('End game offers Cancel, Don\'t save, and Save', (tester) async {
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var discarded = 0;
+    final game = Game(players: ['Ana', 'Ben'])..addRound([1, 2]);
+    await tester.pumpWidget(scoreboardApp(game, onDiscard: () => discarded++));
+
+    Future<void> openEnd() async {
+      await tester.tap(find.text('Menu'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End game'));
+      await tester.pumpAndSettle();
+    }
+
+    await openEnd();
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Don\'t save'), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(discarded, 0);
+    expect(game.endedManually, isFalse);
+    expect(find.text('Add round'), findsOneWidget);
+
+    await openEnd();
+    await tester.tap(find.text('Don\'t save'));
+    await tester.pumpAndSettle();
+    expect(discarded, 1);
+    expect(game.endedManually, isFalse);
+
+    await openEnd();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(discarded, 1);
+    expect(game.endedManually, isTrue);
+    expect(find.bySemanticsLabel('Ben wins with 2 points!'), findsOneWidget);
+  });
+
   testWidgets('Undo after End game reopens the game with every round', (
     tester,
   ) async {
@@ -823,7 +1093,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('End game'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Yes'));
+    await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Ben wins with 6 points!'), findsOneWidget);
 
@@ -988,6 +1258,7 @@ void main() {
         game: longGame(['Ana', 'Ben', 'Cara'], 30),
         onRematch: () {},
         onChangeSetup: () {},
+        onDiscard: () {},
         onShowHistory: () {},
         onPersist: () async {},
       ),
@@ -1022,6 +1293,7 @@ void main() {
           ], 30),
           onRematch: () {},
           onChangeSetup: () {},
+          onDiscard: () {},
           onShowHistory: () {},
           onPersist: () async {},
         ),
@@ -1055,6 +1327,7 @@ void main() {
         game: game,
         onRematch: () {},
         onChangeSetup: () {},
+        onDiscard: () {},
         onShowHistory: () {},
         onPersist: () async {},
       ),
@@ -1115,6 +1388,7 @@ void main() {
       game: game,
       onRematch: () {},
       onChangeSetup: () {},
+      onDiscard: () {},
       onShowHistory: () {},
       onPersist: () async {},
     );
@@ -1364,10 +1638,7 @@ void main() {
     await tester.enterText(fields.at(0), 'Ana');
     await tester.enterText(fields.at(1), 'Ben');
     await scrollTo(tester, find.text('Number of rounds (optional)'));
-    final limit = find.widgetWithText(
-      TextField,
-      'Number of rounds (optional)',
-    );
+    final limit = find.widgetWithText(TextField, 'Number of rounds (optional)');
     await tester.enterText(limit, '8');
     await scrollTo(tester, find.text('Count rounds down'));
     await tester.tap(find.text('Count rounds down'));

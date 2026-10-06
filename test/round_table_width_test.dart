@@ -42,6 +42,7 @@ Future<void> pumpBoard(
         game: game,
         onRematch: () {},
         onChangeSetup: () {},
+        onDiscard: () {},
         onShowHistory: () {},
         onPersist: () async {},
       ),
