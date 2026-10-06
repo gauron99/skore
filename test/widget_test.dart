@@ -1386,6 +1386,78 @@ void main() {
     expect(find.text('Round 1 of 4'), findsOneWidget);
   });
 
+  testWidgets('see-scores drafts do not carry into the next game', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await tester.enterText(find.byType(TextField).at(0), 'Ana');
+    await tester.enterText(find.byType(TextField).at(1), 'Ben');
+    await scrollTo(tester, find.text('Start game'));
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '10');
+    await tester.enterText(find.widgetWithText(TextField, 'Ben'), '7');
+    await tester.tap(find.text('See scores'));
+    await tester.pumpAndSettle();
+    expect(find.text('Back to scores'), findsOneWidget);
+
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New game'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Back to scores'), findsNothing);
+    expect(find.text('Add round'), findsOneWidget);
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.widgetWithText(TextField, 'Ana'))
+          .controller!
+          .text,
+      '',
+    );
+    expect(
+      tester
+          .widget<TextField>(find.widgetWithText(TextField, 'Ben'))
+          .controller!
+          .text,
+      '',
+    );
+  });
+
+  testWidgets('undo drops see-scores drafts', (tester) async {
+    final game = Game(players: ['Ana', 'Ben'])..addRound([1, 2]);
+    await tester.pumpWidget(scoreboardApp(game));
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Ana'), '9');
+    await tester.tap(find.text('See scores'));
+    await tester.pumpAndSettle();
+    expect(find.text('Back to scores'), findsOneWidget);
+
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Undo last round'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Back to scores'), findsNothing);
+    await tester.tap(find.text('Add round'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.widgetWithText(TextField, 'Ana'))
+          .controller!
+          .text,
+      '',
+    );
+  });
+
   testWidgets('a tie for the lead is 1st and 1st on the podium', (
     tester,
   ) async {

@@ -61,7 +61,16 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
   @override
   void didUpdateWidget(ScoreboardScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.game, widget.game)) {
+      _clearEntryDrafts();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAskBids());
+  }
+
+  void _clearEntryDrafts() {
+    _roundDrafts = null;
+    _bidDrafts = null;
+    _progressPopupHidden = false;
   }
 
   Future<void> _maybeAskBids() async {
@@ -161,7 +170,15 @@ class _ScoreboardScreenState extends State<ScoreboardScreen> {
   }
 
   Future<void> _undoLastRound() async {
-    setState(() => game.undoLastRound());
+    final roundsBefore = game.rounds.length;
+    final bidsBefore = game.whistBids;
+    setState(() {
+      game.undoLastRound();
+      final handChanged =
+          game.rounds.length != roundsBefore ||
+          !identical(game.whistBids, bidsBefore);
+      if (handChanged) _clearEntryDrafts();
+    });
     await widget.onPersist();
   }
 
